@@ -7,7 +7,7 @@ Pydantic handles validation; MongoDB stores the raw dicts.
 
 import enum
 from datetime import datetime, timezone
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Literal, Optional
 
 from bson import ObjectId
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
@@ -77,16 +77,16 @@ class ClinicalRecord(BaseModel):
 
     # Demographics & vitals
     age: Optional[int] = Field(default=None, ge=1, le=150)
-    sex: Optional[str] = Field(default=None, description="M or F")
-    chest_pain_type: Optional[str] = Field(default=None, description="TA, ATA, NAP, ASY")
+    sex: Optional[Literal["M", "F"]] = None
+    chest_pain_type: Optional[Literal["TA", "ATA", "NAP", "ASY"]] = None
     resting_bp: Optional[int] = Field(default=None, ge=0, le=300)
     cholesterol: Optional[int] = Field(default=None, ge=0, le=1000)
     fasting_blood_sugar: Optional[bool] = Field(default=None, description="True if > 120 mg/dl")
-    resting_ecg: Optional[str] = Field(default=None, description="Normal, ST, LVH")
+    resting_ecg: Optional[Literal["Normal", "ST", "LVH"]] = None
     max_heart_rate: Optional[int] = Field(default=None, ge=0, le=300)
     exercise_angina: Optional[bool] = None
     st_depression: Optional[float] = Field(default=None, ge=-10, le=10)
-    st_slope: Optional[str] = Field(default=None, description="Up, Flat, Down")
+    st_slope: Optional[Literal["Up", "Flat", "Down"]] = None
 
     recorded_at: datetime = Field(default_factory=utcnow)
 
