@@ -47,6 +47,26 @@ class TestClinicalRecord:
         assert record.age is None
         assert record.cholesterol is None
 
+    def test_invalid_sex_value_rejected(self):
+        with pytest.raises(ValidationError):
+            ClinicalRecord(patient_id=_pid(), sex="male")
+
+    def test_invalid_chest_pain_type_rejected(self):
+        with pytest.raises(ValidationError):
+            ClinicalRecord(patient_id=_pid(), chest_pain_type="unknown")
+
+    def test_invalid_st_slope_rejected(self):
+        with pytest.raises(ValidationError):
+            ClinicalRecord(patient_id=_pid(), st_slope="Sideways")
+
+    def test_valid_categorical_values_accepted(self):
+        record = ClinicalRecord(
+            patient_id=_pid(), sex="F", chest_pain_type="ASY",
+            resting_ecg="LVH", st_slope="Flat",
+        )
+        assert record.sex == "F"
+        assert record.st_slope == "Flat"
+
 
 class TestECGRecording:
     def test_valid_recording_parses(self):
