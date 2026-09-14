@@ -1,12 +1,39 @@
+"""
+MongoDB document models.
+
+Each class represents the shape of a document in a MongoDB collection.
+Pydantic handles validation; MongoDB stores the raw dicts.
+"""
+
 import enum
-import uuid
-from datetime import date, datetime
+from datetime import datetime, timezone
+from typing import Annotated, Any, Literal, Optional
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from bson import ObjectId
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
-from database import Base
+
+# ── ObjectId helper ──────────────────────────────────────────────
+
+
+def _validate_object_id(value: Any) -> str:
+    """Accept a BSON ObjectId or a valid ObjectId string → always return str."""
+    if isinstance(value, ObjectId):
+        return str(value)
+    if isinstance(value, str) and ObjectId.is_valid(value):
+        return value
+    raise ValueError("Invalid ObjectId")
+
+
+PyObjectId = Annotated[str, BeforeValidator(_validate_object_id)]
+
+
+def utcnow() -> datetime:
+    """Timezone-aware UTC timestamp."""
+    return datetime.now(timezone.utc)
+
+
+# ── Enums ────────────────────────────────────────────────────────
 
 
 class UserRole(str, enum.Enum):
@@ -16,75 +43,117 @@ class UserRole(str, enum.Enum):
     lab_technician = "lab_technician"
 
 
-class User(Base):
-    __tablename__ = "users"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    full_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_role", create_type=False), nullable=False
-    )
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+# ── User ─────────────────────────────────────────────────────────
 
 
-class PatientProfile(Base):
-    __tablename__ = "patient_profiles"
+class User(BaseModel):
+    """Document shape for the `users` collection."""
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
-    date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
-    sex: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
-    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    emergency_contact: Mapped[str | None] = mapped_column(String(150), nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
-    )
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
+
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    full_name: str
+    email: str
+    password_hash: str
+    role: UserRole
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=utcnow)
 
 
-class HealthProfile(Base):
-    __tablename__ = "health_profiles"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    patient_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
-    )
-    height_cm: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
-    weight_kg: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
-    smoker: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    diabetes: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    hypertension: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    family_history: Mapped[str | None] = mapped_column(Text, nullable=True)
-    known_conditions: Mapped[str | None] = mapped_column(Text, nullable=True)
-    current_medications: Mapped[str | None] = mapped_column(Text, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
-    )
+# ── Clinical Record ─────────────────────────────────────────────
 
 
-class MedicalDocument(Base):
-    __tablename__ = "medical_documents"
+class ClinicalRecord(BaseModel):
+    """Tabular clinical/lab features used for heart disease prediction.
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    patient_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    document_type: Mapped[str] = mapped_column(String(30), nullable=False)
-    original_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    stored_name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
-    content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
-    storage_path: Mapped[str] = mapped_column(Text, nullable=False)
-    processing_status: Mapped[str] = mapped_column(String(40), nullable=False, default="uploaded")
-    processing_message: Mapped[str | None] = mapped_column(String(300), nullable=True)
-    uploaded_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+    Stored in the `clinical_records` collection. Each document represents
+    one clinical observation for a patient.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
+
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    patient_id: PyObjectId
+
+    # Demographics & vitals
+    age: Optional[int] = Field(default=None, ge=1, le=150)
+    sex: Optional[Literal["M", "F"]] = None
+    chest_pain_type: Optional[Literal["TA", "ATA", "NAP", "ASY"]] = None
+    resting_bp: Optional[int] = Field(default=None, ge=0, le=300)
+    cholesterol: Optional[int] = Field(default=None, ge=0, le=1000)
+    fasting_blood_sugar: Optional[bool] = Field(default=None, description="True if > 120 mg/dl")
+    resting_ecg: Optional[Literal["Normal", "ST", "LVH"]] = None
+    max_heart_rate: Optional[int] = Field(default=None, ge=0, le=300)
+    exercise_angina: Optional[bool] = None
+    st_depression: Optional[float] = Field(default=None, ge=-10, le=10)
+    st_slope: Optional[Literal["Up", "Flat", "Down"]] = None
+
+    recorded_at: datetime = Field(default_factory=utcnow)
+
+
+# ── ECG Recording ───────────────────────────────────────────────
+
+
+class ECGRecording(BaseModel):
+    """Metadata for an uploaded ECG signal file.
+
+    The raw waveform is stored on disk; this document tracks file
+    location and signal properties. Stored in the `ecg_recordings` collection.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
+
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    patient_id: PyObjectId
+
+    # File info
+    original_name: str
+    stored_name: str
+    storage_path: str
+    content_type: Optional[str] = None
+    size_bytes: int
+
+    # Signal properties
+    sampling_rate_hz: int = 500
+    lead_count: int = 1
+    duration_seconds: Optional[float] = None
+
+    # Processing
+    processing_status: str = "uploaded"
+    processing_message: Optional[str] = None
+
+    uploaded_at: datetime = Field(default_factory=utcnow)
+
+
+# ── Prediction Result ───────────────────────────────────────────
+
+
+class PredictionResult(BaseModel):
+    """A single model prediction plus its explainability output.
+
+    Stored in the `prediction_results` collection. Built ahead of
+    schedule (Sprint 3 task) so the fusion model's output has somewhere
+    to land once it's ready — SHAP/LIME values are stored per-feature
+    so the dashboard can render a bar chart without recomputing them.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
+
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    patient_id: PyObjectId
+    clinical_record_id: Optional[PyObjectId] = None
+    ecg_recording_id: Optional[PyObjectId] = None
+
+    # Model output
+    model_name: str = Field(description="e.g. 'fusion_v1', 'clinical_xgboost'")
+    model_version: str = "1.0.0"
+    risk_score: float = Field(ge=0.0, le=1.0, description="Predicted probability of disease")
+    predicted_label: Literal["low_risk", "high_risk"]
+
+    # Explainability — one entry per input feature that influenced the score
+    shap_values: Optional[dict[str, float]] = None
+    lime_values: Optional[dict[str, float]] = None
+    top_contributing_features: Optional[list[str]] = None
+
+    created_at: datetime = Field(default_factory=utcnow)
+
