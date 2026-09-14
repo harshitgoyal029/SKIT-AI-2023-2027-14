@@ -10,7 +10,7 @@ import pytest
 from bson import ObjectId
 from pydantic import ValidationError
 
-from models import ClinicalRecord, ECGRecording, User, UserRole
+from models import ClinicalRecord, ECGRecording, PredictionResult, User, UserRole
 
 
 def _pid() -> str:
@@ -96,3 +96,45 @@ class TestUser:
                 full_name="Test", email="t@x.com",
                 password_hash="x", role="not-a-real-role",
             )
+
+
+class TestPredictionResult:
+    def test_valid_prediction_with_shap_parses(self):
+        pred = PredictionResult(
+            patient_id=_pid(), model_name="fusion_v1", risk_score=0.78,
+            predicted_label="high_risk",
+            shap_values={"age": 0.12, "cholesterol": 0.34},
+            top_contributing_features=["cholesterol", "age"],
+        )
+        assert pred.risk_score == 0.78
+        assert pred.shap_values["cholesterol"] == 0.34
+
+    def test_risk_score_out_of_range_rejected(self):
+        with pytest.raises(ValidationError):
+            PredictionResult(
+                patient_id=_pid(), model_name="x", risk_score=1.5,
+                predicted_label="high_risk",
+            )
+
+    def test_negative_risk_score_rejected(self):
+        with pytest.raises(ValidationError):
+            PredictionResult(
+                patient_id=_pid(), model_name="x", risk_score=-0.1,
+                predicted_label="low_risk",
+            )
+
+    def test_invalid_predicted_label_rejected(self):
+        with pytest.raises(ValidationError):
+            PredictionResult(
+                patient_id=_pid(), model_name="x", risk_score=0.5,
+                predicted_label="maybe",
+            )
+
+    def test_prediction_without_explainability_still_valid(self):
+        # A model that hasn't run SHAP/LIME yet should still be storable.
+        pred = PredictionResult(
+            patient_id=_pid(), model_name="clinical_xgboost", risk_score=0.3,
+            predicted_label="low_risk",
+        )
+        assert pred.shap_values is None
+        assert pred.lime_values is None
