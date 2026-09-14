@@ -74,6 +74,7 @@ def init_indexes() -> None:
     database["medical_documents"].create_index("patient_id")
     database["medical_documents"].create_index("stored_name", unique=True)
     database["clinical_records"].create_index("patient_id")
+    database["clinical_records"].create_index([("patient_id", 1), ("recorded_at", -1)])
     database["ecg_recordings"].create_index("patient_id")
     database["ecg_recordings"].create_index("stored_name", unique=True)
 
@@ -88,3 +89,18 @@ def get_collection_stats() -> dict:
     for name in collections:
         stats[name] = database[name].count_documents({})
     return stats
+
+
+def get_patient_clinical_history(patient_id: str, limit: int = 10) -> list:
+    """Return a patient's most recent clinical records, newest first.
+
+    Uses the (patient_id, recorded_at) compound index created in
+    init_indexes() so this stays fast even as the collection grows.
+    """
+    cursor = (
+        database["clinical_records"]
+        .find({"patient_id": patient_id})
+        .sort("recorded_at", -1)
+        .limit(limit)
+    )
+    return list(cursor)
