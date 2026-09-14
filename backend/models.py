@@ -124,3 +124,36 @@ class ECGRecording(BaseModel):
 
     uploaded_at: datetime = Field(default_factory=utcnow)
 
+
+# ── Prediction Result ───────────────────────────────────────────
+
+
+class PredictionResult(BaseModel):
+    """A single model prediction plus its explainability output.
+
+    Stored in the `prediction_results` collection. Built ahead of
+    schedule (Sprint 3 task) so the fusion model's output has somewhere
+    to land once it's ready — SHAP/LIME values are stored per-feature
+    so the dashboard can render a bar chart without recomputing them.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
+
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    patient_id: PyObjectId
+    clinical_record_id: Optional[PyObjectId] = None
+    ecg_recording_id: Optional[PyObjectId] = None
+
+    # Model output
+    model_name: str = Field(description="e.g. 'fusion_v1', 'clinical_xgboost'")
+    model_version: str = "1.0.0"
+    risk_score: float = Field(ge=0.0, le=1.0, description="Predicted probability of disease")
+    predicted_label: Literal["low_risk", "high_risk"]
+
+    # Explainability — one entry per input feature that influenced the score
+    shap_values: Optional[dict[str, float]] = None
+    lime_values: Optional[dict[str, float]] = None
+    top_contributing_features: Optional[list[str]] = None
+
+    created_at: datetime = Field(default_factory=utcnow)
+
