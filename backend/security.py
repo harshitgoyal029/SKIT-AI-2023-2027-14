@@ -1,39 +1,47 @@
-import os
+"""
+Security utilities — password hashing and JWT token management.
+"""
+
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from dotenv import load_dotenv
 from pwdlib import PasswordHash
 
+from config import settings
 
-load_dotenv()
+# ── Password hashing (Argon2) ────────────────────────────────────
 
-JWT_SECRET = os.getenv("JWT_SECRET")
-if not JWT_SECRET or JWT_SECRET == "REPLACE_WITH_A_LONG_RANDOM_SECRET":
-    raise RuntimeError("JWT_SECRET is missing or has not been changed in backend/.env.")
-
-ALGORITHM = "HS256"
-ACCESS_TOKEN_MINUTES = 60
-password_hash = PasswordHash.recommended()
+_hasher = PasswordHash.recommended()
 
 
 def hash_password(password: str) -> str:
-    return password_hash.hash(password)
+    """Hash a plain-text password with Argon2."""
+    return _hasher.hash(password)
 
 
-def verify_password(password: str, hashed_password: str) -> bool:
-    return password_hash.verify(password, hashed_password)
+def verify_password(plain: str, hashed: str) -> bool:
+    """Check a plain-text password against its Argon2 hash."""
+    return _hasher.verify(plain, hashed)
+
+
+# ── JWT tokens ───────────────────────────────────────────────────
 
 
 def create_access_token(user_id: str, role: str) -> tuple[str, datetime]:
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_MINUTES)
+    """Create a signed JWT. Returns (token_string, expiry_datetime)."""
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRY_MINUTES)
     token = jwt.encode(
         {"sub": user_id, "role": role, "exp": expires_at},
-        JWT_SECRET,
-        algorithm=ALGORITHM,
+        settings.JWT_SECRET,
+        algorithm=settings.JWT_ALGORITHM,
     )
     return token, expires_at
 
 
 def decode_access_token(token: str) -> dict:
-    return jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+    """Decode and verify a JWT. Raises jwt.PyJWTError on failure."""
+    return jwt.decode(
+        token,
+        settings.JWT_SECRET,
+        algorithms=[settings.JWT_ALGORITHM],
+    )

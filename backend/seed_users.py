@@ -1,11 +1,8 @@
-"""Create local development accounts in PostgreSQL if they do not already exist."""
+"""Create local development accounts in MongoDB if they do not already exist."""
 
-from sqlalchemy import select
-
-from database import SessionLocal
+from database import get_db
 from models import User, UserRole
 from security import hash_password
-
 
 DEVELOPMENT_USERS = [
     ("System Administrator", "admin@cardioxai.org", "Admin@123", UserRole.admin),
@@ -16,26 +13,22 @@ DEVELOPMENT_USERS = [
 
 
 def seed_users() -> None:
-    with SessionLocal() as db:
-        created = []
-        for full_name, email, password, role in DEVELOPMENT_USERS:
-            exists = db.scalar(select(User).where(User.email == email))
-            if exists:
-                print(f"Skipped existing user: {email}")
-                continue
+    db = get_db()
+    users_collection = db["users"]
 
-            db.add(
-                User(
-                    full_name=full_name,
-                    email=email,
-                    password_hash=hash_password(password),
-                    role=role,
-                )
-            )
-            created.append(email)
-        db.commit()
-        for email in created:
-            print(f"Created: {email}")
+    for full_name, email, password, role in DEVELOPMENT_USERS:
+        if users_collection.find_one({"email": email}):
+            print(f"Skipped existing user: {email}")
+            continue
+
+        user = User(
+            full_name=full_name,
+            email=email,
+            password_hash=hash_password(password),
+            role=role,
+        )
+        users_collection.insert_one(user.model_dump(by_alias=True, exclude={"id"}))
+        print(f"Created: {email}")
 
 
 if __name__ == "__main__":
