@@ -9,28 +9,47 @@ import {
 import DashboardLayout from "./layouts/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import PatientRegistration from "./pages/PatientRegistration";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
 
 const App = () => {
     return (
         <BrowserRouter>
-            <DashboardLayout>
-                <Routes>
-                    <Route
-                        path="/"
-                        element={<Navigate to="/dashboard" replace />}
-                    />
+            <Routes>
 
-                    <Route
-                        path="/dashboard"
-                        element={<Dashboard />}
-                    />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
-                    <Route
-                        path="/patient-registration"
-                        element={<PatientRegistration />}
-                    />
-                </Routes>
-            </DashboardLayout>
+                <Route
+                    path="/*"
+                    element={
+                        <DashboardLayout>
+                            <Routes>
+                                <Route
+                                    path="/dashboard"
+                                    element={<Dashboard />}
+                                />
+
+                                <Route
+                                    path="/patient-registration"
+                                    element={<PatientRegistration />}
+                                />
+
+                                <Route
+                                    path="/"
+                                    element={
+                                        <Navigate
+                                            to="/dashboard"
+                                            replace
+                                        />
+                                    }
+                                />
+                            </Routes>
+                        </DashboardLayout>
+                    }
+                />
+
+            </Routes>
         </BrowserRouter>
     );
 };
