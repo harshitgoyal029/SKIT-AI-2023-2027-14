@@ -5,6 +5,7 @@ Sprint 1(A): Basic server setup and project structure.
 Sprint 1(B): JWT authentication and security.
 Sprint 1(C): Clinical and ECG data upload APIs.
 Sprint 2(A): Database connection verification, health checks, and seed data.
+Sprint 2(B): Clinical prediction API (DNN inference).
 """
 
 from contextlib import asynccontextmanager
@@ -17,6 +18,8 @@ from auth import router as auth_router
 from config import settings
 from database import get_collection_stats, init_indexes, ping_db, verify_connection
 from upload import router as upload_router
+from predict import router as predict_router
+from ml_engine import clinical_model
 
 UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
 
@@ -35,6 +38,13 @@ async def lifespan(app: FastAPI):
     print("  ✓ Database indexes ready")
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     print("  ✓ Uploads directory ready")
+    # ── Load ML model ──
+    try:
+        clinical_model.load()
+        print(f"  ✓ Clinical DNN model loaded ({len(clinical_model.feature_names)} features)")
+    except Exception as exc:
+        print(f"  ✗ Clinical DNN model failed to load: {exc}")
+        print("    Prediction endpoints will return 503 until model is available.")
     print(f"  ✓ Database: {settings.MONGODB_DB_NAME}")
     print(f"✓ {settings.APP_NAME} is running — docs at /docs\n")
     yield
@@ -63,6 +73,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(upload_router)
+app.include_router(predict_router)
 
 
 # ── System Endpoints ─────────────────────────────────────────────
