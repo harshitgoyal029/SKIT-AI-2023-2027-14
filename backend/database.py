@@ -94,6 +94,8 @@ def init_indexes() -> None:
     database["clinical_records"].create_index([("patient_id", 1), ("recorded_at", -1)])
     database["ecg_recordings"].create_index("patient_id")
     database["ecg_recordings"].create_index("stored_name", unique=True)
+    database["prediction_results"].create_index("patient_id")
+    database["prediction_results"].create_index([("patient_id", 1), ("created_at", -1)])
 
 
 def get_collection_stats() -> dict:
@@ -101,6 +103,7 @@ def get_collection_stats() -> dict:
     collections = [
         "users", "patient_profiles", "health_profiles",
         "medical_documents", "clinical_records", "ecg_recordings",
+        "prediction_results",
     ]
     stats = {}
     for name in collections:

@@ -13,10 +13,14 @@ import os
 import tempfile
 import zipfile
 from pathlib import Path
+import warnings
 
 import h5py
 import joblib
 import numpy as np
+
+# Suppress sklearn feature name and version warnings during inference
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 # ── Paths ────────────────────────────────────────────────────────
 
