@@ -11,10 +11,27 @@ from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from config import settings
 
 # ── Connection ───────────────────────────────────────────────────
+# Python 3.14 ships a stricter SSL module that can cause
+# TLSV1_ALERT_INTERNAL_ERROR with some MongoDB Atlas clusters.
+# We build a custom SSL context with certifi's CA bundle to fix this.
+
+import ssl
+
+try:
+    import certifi
+    _ca_file = certifi.where()
+except ImportError:
+    _ca_file = None
+
+_tls_context = ssl.create_default_context(cafile=_ca_file)
+_tls_context.minimum_version = ssl.TLSVersion.TLSv1_2
+_tls_context.check_hostname = True
 
 client: MongoClient = MongoClient(
     settings.MONGODB_URI,
-    serverSelectionTimeoutMS=5000,  # 5s timeout for health checks
+    serverSelectionTimeoutMS=5000,
+    tls=True,
+    tlsCAFile=_ca_file,
 )
 database: Database = client[settings.MONGODB_DB_NAME]
 
