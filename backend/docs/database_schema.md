@@ -60,6 +60,26 @@ signal properties (keeps documents small and MongoDB fast).
 **Indexes:** `patient_id`; `stored_name` (unique) — prevents overwriting a
 different patient's file with the same generated name.
 
+## `prediction_results`
+Stores each model prediction along with its SHAP/LIME explainability
+output, so the dashboard can render a "why did the model say this"
+chart without recomputing anything. Written by `predict.py`.
+
+| Field | Type | Notes |
+|---|---|---|
+| `patient_id` | ObjectId (str) | Required |
+| `clinical_record_id` / `ecg_recording_id` | ObjectId (str) | Optional — which inputs this prediction used |
+| `model_name` | str | e.g. `fusion_v1`, `clinical_xgboost` |
+| `model_version` | str | Default `1.0.0` |
+| `risk_score` | float | 0.0–1.0, validated |
+| `predicted_label` | str | `low_risk` or `high_risk` only |
+| `shap_values` / `lime_values` | dict[str, float] | Optional — per-feature contribution |
+| `top_contributing_features` | list[str] | Optional |
+| `created_at` | datetime (UTC) | |
+
+**No index yet** — add one on `patient_id` once query patterns for the
+dashboard are known (likely "most recent prediction per patient").
+
 ## Why validation lives in Pydantic, not just MongoDB
 
 MongoDB itself has no fixed schema, so all correctness (age ranges, required
