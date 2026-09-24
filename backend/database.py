@@ -96,18 +96,24 @@ def init_indexes() -> None:
     database["ecg_recordings"].create_index("stored_name", unique=True)
     database["prediction_results"].create_index("patient_id")
     database["prediction_results"].create_index([("patient_id", 1), ("created_at", -1)])
+    database["patients"].create_index("patientId", unique=True)
+    database["patients"].create_index([("createdAt", -1)])
+    database["patients"].create_index("riskLevel")
 
 
 def get_collection_stats() -> dict:
     """Return document counts for each collection (useful for dashboards)."""
     collections = [
-        "users", "patient_profiles", "health_profiles",
+        "users", "patients", "patient_profiles", "health_profiles",
         "medical_documents", "clinical_records", "ecg_recordings",
         "prediction_results",
     ]
     stats = {}
     for name in collections:
-        stats[name] = database[name].count_documents({})
+        try:
+            stats[name] = database[name].count_documents({})
+        except Exception:
+            stats[name] = 0
     return stats
 
 
@@ -124,3 +130,14 @@ def get_patient_clinical_history(patient_id: str, limit: int = 10) -> list:
         .limit(limit)
     )
     return list(cursor)
+
+
+def get_patient_by_identifier(identifier: str) -> dict | None:
+    """Find a patient document by MongoDB _id (if valid ObjectId) or by clinical patientId."""
+    from bson import ObjectId
+    doc = None
+    if ObjectId.is_valid(identifier):
+        doc = database["patients"].find_one({"_id": ObjectId(identifier)})
+    if not doc:
+        doc = database["patients"].find_one({"patientId": identifier})
+    return doc

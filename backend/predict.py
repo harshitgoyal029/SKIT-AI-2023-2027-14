@@ -176,3 +176,90 @@ def prediction_history(
         }
         for doc in results
     ]
+
+
+@router.post("/patient/{identifier}")
+def predict_registered_patient(
+    identifier: str,
+    db: Database = Depends(get_db),
+) -> dict:
+    """Run cardiovascular risk prediction and XAI analysis for a registered patient."""
+    from database import get_patient_by_identifier
+    from ml_engine import predict_patient
+
+    patient = get_patient_by_identifier(identifier)
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Patient '{identifier}' was not found.",
+        )
+
+    result = predict_patient(patient)
+
+    # Persist prediction in DB
+    prediction_id = None
+    try:
+        pred_record = PredictionResult(
+            patient_id=str(patient["_id"]),
+            model_name="clinical_dnn",
+            model_version="1.0.0",
+            risk_score=result["risk_score"],
+            predicted_label=result["predicted_label"],
+            top_contributing_features=result.get("top_contributing_features", []),
+        )
+        insert_res = db["prediction_results"].insert_one(
+            pred_record.model_dump(by_alias=True, exclude={"id"})
+        )
+        prediction_id = str(insert_res.inserted_id)
+
+        # Update patient document with latest assessment
+        db["patients"].update_one(
+            {"_id": patient["_id"]},
+            {
+                "$set": {
+                    "risk_score": result["risk_score"],
+                    "riskLevel": result["risk_level"],
+                    "risk_level": result["risk_level"],
+                    "predicted_label": result["predicted_label"],
+                    "top_contributing_features": result["top_contributing_features"],
+                    "feature_contributions": result["feature_contributions"],
+                    "explanations": result.get("explanations", []),
+                    "updatedAt": utcnow(),
+                }
+            },
+        )
+    except Exception:
+        pass
+
+    return {
+        "patientId": patient.get("patientId"),
+        "name": patient.get("name"),
+        "prediction_id": prediction_id,
+        "risk_score": result["risk_score"],
+        "predicted_label": result["predicted_label"],
+        "risk_level": result["risk_level"],
+        "feature_contributions": result["feature_contributions"],
+        "top_contributing_features": result["top_contributing_features"],
+        "explanations": result.get("explanations", []),
+    }
+
+
+@router.post("/explain")
+def explain_clinical_risk(
+    body: dict,
+) -> dict:
+    """Explainable AI (XAI) endpoint — produces feature-by-feature clinical interpretations."""
+    from ml_engine import predict_patient
+
+    result = predict_patient(body)
+    return {
+        "risk_score": result["risk_score"],
+        "risk_level": result["risk_level"],
+        "predicted_label": result["predicted_label"],
+        "feature_contributions": result["feature_contributions"],
+        "explanations": result.get("explanations", []),
+        "clinical_summary": (
+            f"Patient is assessed as {result['risk_level']} (risk score: {result['risk_score'] * 100:.1f}%). "
+            f"The primary contributing factor is {result['top_contributing_features'][0] if result['top_contributing_features'] else 'multiple vitals'}."
+        ),
+    }

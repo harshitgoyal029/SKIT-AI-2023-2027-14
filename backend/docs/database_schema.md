@@ -77,8 +77,31 @@ chart without recomputing anything. Written by `predict.py`.
 | `top_contributing_features` | list[str] | Optional |
 | `created_at` | datetime (UTC) | |
 
-**No index yet** — add one on `patient_id` once query patterns for the
-dashboard are known (likely "most recent prediction per patient").
+**Indexes:** `patient_id` (single and compound with `created_at`).
+
+## `patients`
+Registered clinical patients managed through the Clinician Dashboard and Patient Registration workflows. Stores patient demographics, baseline vitals, and their latest explainable AI cardiovascular risk assessment.
+
+| Field | Type | Notes |
+|---|---|---|
+| `_id` | ObjectId | MongoDB unique identifier |
+| `patientId` | str | Institutional patient identifier (unique) |
+| `name` | str | Full name of patient |
+| `age` | int | 1–120 years |
+| `gender` | str | `Male` / `Female` |
+| `phone` / `email` | str | Optional contact information |
+| `bloodPressure` | str | e.g. `120/80` mmHg |
+| `cholesterol` | float/int/str | Serum cholesterol level or reading |
+| `heartRate` | float/int | Resting heart rate in BPM |
+| `diabetes` | str | `Yes` / `No` |
+| `smoking` | str | `Yes` / `No` |
+| `familyHistory` | str | `Yes` / `No` |
+| `risk_score` | float | 0.0–1.0 probability of CVD |
+| `riskLevel` | str | `Low Risk`, `Moderate Risk`, `High Risk`, `Very High Risk` |
+| `top_contributing_features` | list[str] | Top XAI features influencing the risk score |
+| `createdAt` / `updatedAt` | datetime (UTC) | Creation and last update timestamps |
+
+**Indexes:** `patientId` (unique), `createdAt` (descending for latest queries), `riskLevel`.
 
 ## Why validation lives in Pydantic, not just MongoDB
 
