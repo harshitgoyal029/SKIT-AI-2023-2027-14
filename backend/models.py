@@ -157,3 +157,40 @@ class PredictionResult(BaseModel):
 
     created_at: datetime = Field(default_factory=utcnow)
 
+
+# ── Patient ─────────────────────────────────────────────────────
+
+
+class Patient(BaseModel):
+    """Document shape for the `patients` collection.
+
+    Represents a patient registered through the clinician dashboard,
+    containing baseline demographics, clinical vitals, and their latest
+    AI risk assessment.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
+
+    id: Optional[PyObjectId] = Field(default=None, alias="_id")
+    patient_id: str = Field(alias="patientId", min_length=1, max_length=50)
+    name: str = Field(min_length=1, max_length=150)
+    age: int = Field(ge=1, le=120)
+    gender: str
+    phone: Optional[str] = ""
+    email: Optional[str] = ""
+    blood_pressure: Optional[str] = Field(default="", alias="bloodPressure")
+    cholesterol: Optional[Any] = None
+    heart_rate: Optional[Any] = Field(default=None, alias="heartRate")
+    diabetes: Optional[str] = "No"
+    smoking: Optional[str] = "No"
+    family_history: Optional[str] = Field(default="No", alias="familyHistory")
+
+    # Assessment outputs (computed via ML engine)
+    risk_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    risk_level: Optional[str] = Field(default=None, alias="riskLevel")
+    predicted_label: Optional[str] = None
+    top_contributing_features: Optional[list[str]] = None
+
+    created_at: datetime = Field(default_factory=utcnow, alias="createdAt")
+    updated_at: Optional[datetime] = Field(default_factory=utcnow, alias="updatedAt")
+
