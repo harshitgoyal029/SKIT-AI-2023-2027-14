@@ -1,46 +1,70 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen = true, onClose }) => {
+    const getLinkClass = ({ isActive }) =>
+        isActive ? "sidebar-link active" : "sidebar-link";
+
     return (
-        <aside className="sidebar">
-            <div className="sidebar-title">
-                <span>MAIN MENU</span>
-            </div>
+        <>
+            {isOpen && (
+                <div
+                    className="sidebar-overlay"
+                    onClick={onClose}
+                />
+            )}
 
-            <nav>
-                <NavLink
-                    to="/dashboard"
-                    className={({ isActive }) =>
-                        isActive ? "sidebar-link active" : "sidebar-link"
-                    }
-                >
-                    <span>▣</span>
-                    Dashboard
-                </NavLink>
+            <aside className={`sidebar ${isOpen ? "sidebar-visible" : "sidebar-hidden"}`}>
+                <div className="sidebar-title">
+                    <span>MAIN MENU</span>
+                </div>
 
-                <NavLink
-                    to="/patient-registration"
-                    className={({ isActive }) =>
-                        isActive ? "sidebar-link active" : "sidebar-link"
-                    }
-                >
-                    <span>＋</span>
-                    New Patient
-                </NavLink>
-            </nav>
+                <nav className="sidebar-nav">
+                    <NavLink
+                        to="/dashboard"
+                        className={getLinkClass}
+                        onClick={onClose}
+                    >
+                        <span className="sidebar-icon">▣</span>
+                        <span>Dashboard</span>
+                    </NavLink>
 
-            <div className="sidebar-bottom">
-                <div className="system-status">
-                    <span className="status-dot"></span>
+                    <NavLink
+                        to="/patient-registration"
+                        className={getLinkClass}
+                        onClick={onClose}
+                    >
+                        <span className="sidebar-icon">＋</span>
+                        <span>New Patient</span>
+                    </NavLink>
+                </nav>
+
+                <div className="sidebar-info">
+                    <div className="sidebar-info-icon">🫀</div>
 
                     <div>
-                        <strong>System Online</strong>
-                        <small>AI services ready</small>
+                        <strong>CVD-XAI</strong>
+                        <small>Clinical Intelligence</small>
                     </div>
                 </div>
-            </div>
-        </aside>
+
+                <div className="sidebar-bottom">
+                    <div className="system-status">
+                        <span className="status-dot"></span>
+
+                        <div>
+                            <strong>System Online</strong>
+                            <small>AI services ready</small>
+                        </div>
+                    </div>
+
+                    <div className="sidebar-version">
+                        <span>Clinical Platform</span>
+                        <span>v1.0</span>
+                    </div>
+                </div>
+            </aside>
+        </>
     );
 };
 
