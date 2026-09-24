@@ -187,7 +187,7 @@ def predict_registered_patient(
     from database import get_patient_by_identifier
     from ml_engine import predict_patient
 
-    patient = get_patient_by_identifier(identifier)
+    patient = get_patient_by_identifier(identifier, db=db)
     if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

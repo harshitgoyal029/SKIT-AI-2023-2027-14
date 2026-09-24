@@ -132,12 +132,19 @@ def get_patient_clinical_history(patient_id: str, limit: int = 10) -> list:
     return list(cursor)
 
 
-def get_patient_by_identifier(identifier: str) -> dict | None:
+def get_patient_by_identifier(identifier: str, db: Database | None = None) -> dict | None:
     """Find a patient document by MongoDB _id (if valid ObjectId) or by clinical patientId."""
     from bson import ObjectId
+    target_db = db if db is not None else database
     doc = None
     if ObjectId.is_valid(identifier):
-        doc = database["patients"].find_one({"_id": ObjectId(identifier)})
+        try:
+            doc = target_db["patients"].find_one({"_id": ObjectId(identifier)})
+        except Exception:
+            doc = None
     if not doc:
-        doc = database["patients"].find_one({"patientId": identifier})
+        try:
+            doc = target_db["patients"].find_one({"patientId": identifier})
+        except Exception:
+            doc = None
     return doc

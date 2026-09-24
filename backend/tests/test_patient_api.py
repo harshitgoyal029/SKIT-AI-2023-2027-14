@@ -16,6 +16,7 @@ from ml_engine import (
     predict_patient,
 )
 from patient_api import PatientCreate, PatientUpdate, router
+from predict import router as predict_router
 from fastapi import FastAPI
 from database import get_db
 
@@ -93,6 +94,7 @@ def mock_db():
 def client(mock_db):
     test_app = FastAPI()
     test_app.include_router(router)
+    test_app.include_router(predict_router)
     test_app.dependency_overrides[get_db] = lambda: mock_db
     return TestClient(test_app)
 
@@ -275,3 +277,31 @@ class TestPatientEndpoints:
         assert "risk_score" in data
         assert "risk_level" in data
         assert "feature_contributions" in data
+
+    def test_predict_patient_route(self, client):
+        client.post(
+            "/api/patients",
+            json={"patientId": "P-PRED", "name": "Predict Patient", "age": 62, "gender": "Male", "bloodPressure": "155/95", "smoking": "Yes"},
+        )
+        res = client.post("/api/predict/patient/P-PRED")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["patientId"] == "P-PRED"
+        assert "risk_score" in data
+        assert "risk_level" in data
+        assert len(data["feature_contributions"]) > 0
+
+    def test_predict_explain_route(self, client):
+        body = {
+            "age": 55,
+            "gender": "Female",
+            "bloodPressure": "140/90",
+            "cholesterol": 240,
+            "smoking": "Yes",
+        }
+        res = client.post("/api/predict/explain", json=body)
+        assert res.status_code == 200
+        data = res.json()
+        assert "clinical_summary" in data
+        assert "explanations" in data
+        assert len(data["explanations"]) > 0

@@ -197,7 +197,7 @@ def get_patient(
     db: Database = Depends(get_db),
 ) -> dict:
     """Fetch an individual patient by their MongoDB ObjectId or institutional patientId."""
-    patient = get_patient_by_identifier(identifier)
+    patient = get_patient_by_identifier(identifier, db=db)
     if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -213,7 +213,7 @@ def update_patient(
     db: Database = Depends(get_db),
 ) -> dict:
     """Update patient vitals or demographics, and recalculate risk score if vitals changed."""
-    patient = get_patient_by_identifier(identifier)
+    patient = get_patient_by_identifier(identifier, db=db)
     if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -255,7 +255,7 @@ def delete_patient(
     db: Database = Depends(get_db),
 ) -> MessageResponse:
     """Delete a patient record and their related predictions."""
-    patient = get_patient_by_identifier(identifier)
+    patient = get_patient_by_identifier(identifier, db=db)
     if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -273,7 +273,7 @@ def assess_patient(
     db: Database = Depends(get_db),
 ) -> dict:
     """Manually trigger or refresh cardiovascular risk assessment for an existing patient."""
-    patient = get_patient_by_identifier(identifier)
+    patient = get_patient_by_identifier(identifier, db=db)
     if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
