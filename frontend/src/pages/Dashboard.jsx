@@ -18,6 +18,8 @@ import {
 
 import ClinicalStatistics from "../components/ClinicalStatistics";
 import ShapChart from "../components/ShapChart";
+import EcgAnalysis from "../components/EcgAnalysis";
+import AIReport from "../components/AIReport";
 
 
 
@@ -2313,6 +2315,16 @@ const Dashboard = () => {
 
             {/* -------------------------------------------------
 
+                AI REPORT SECTION
+
+            ------------------------------------------------- */}
+
+            {activeSection === "assessment" && testData && (
+                <AIReport patient={patient} testData={testData} />
+            )}
+
+            {/* -------------------------------------------------
+
                 EXPLAINABILITY SECTION
 
             ------------------------------------------------- */}
@@ -2694,6 +2706,8 @@ const Dashboard = () => {
                     method={testData.explainability.method || "SHAP"}
                 />
             )}
+
+            {testData?.ecg && <EcgAnalysis ecg={testData.ecg} />}
 
             {/* -------------------------------------------------
 
