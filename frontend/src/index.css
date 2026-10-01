@@ -1315,3 +1315,186 @@ select {
         padding: 18px;
     }
 }
+
+/* -------------------------------------------------
+   SHAP CHART UI
+------------------------------------------------- */
+.shap-chart-section {
+    margin-top: 28px;
+}
+
+.shap-chart-badge {
+    padding: 8px 14px;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.shap-chart-card {
+    margin-top: 18px;
+    padding: 24px;
+    border-radius: 18px;
+    background: #fff;
+    border: 1px solid #e7eaf0;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.shap-chart-legend {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+    font-size: 13px;
+    color: #5f6675;
+}
+
+.shap-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.shap-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.shap-dot.positive {
+    background: #dc2626;
+}
+
+.shap-dot.negative {
+    background: #2563eb;
+}
+
+.shap-axis {
+    display: flex;
+    justify-content: space-between;
+    margin: 0 62px 10px 180px;
+    font-size: 11px;
+    color: #8a91a0;
+}
+
+.shap-row {
+    display: grid;
+    grid-template-columns: 170px minmax(160px, 1fr) 58px;
+    align-items: center;
+    gap: 12px;
+    min-height: 58px;
+}
+
+.shap-feature-name {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.shap-feature-name strong {
+    font-size: 14px;
+    color: #202735;
+}
+
+.shap-feature-name span {
+    font-size: 11px;
+    color: #8a91a0;
+}
+
+.shap-bar-area {
+    position: relative;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #f3f5f8;
+}
+
+.shap-center-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #aeb4c0;
+    z-index: 2;
+}
+
+.shap-bar {
+    height: 10px;
+    border-radius: 999px;
+    position: absolute;
+    top: 4px;
+}
+
+.shap-bar.positive {
+    left: 50%;
+    background: #dc2626;
+}
+
+.shap-bar.negative {
+    right: 50%;
+    background: #2563eb;
+}
+
+.shap-value {
+    font-size: 13px;
+    font-weight: 700;
+    text-align: right;
+}
+
+.shap-value.positive {
+    color: #dc2626;
+}
+
+.shap-value.negative {
+    color: #2563eb;
+}
+
+.shap-chart-note {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #f7f8fb;
+    color: #697181;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.shap-chart-note p {
+    margin: 0;
+}
+
+@media (max-width: 760px) {
+    .shap-chart-card {
+        padding: 16px;
+    }
+
+    .shap-axis {
+        margin-left: 0;
+        margin-right: 58px;
+    }
+
+    .shap-row {
+        grid-template-columns: 1fr 48px;
+        gap: 8px;
+    }
+
+    .shap-feature-name {
+        grid-column: 1 / -1;
+    }
+
+    .shap-bar-area {
+        grid-column: 1;
+    }
+
+    .shap-value {
+        grid-column: 2;
+        grid-row: 2;
+    }
+}
