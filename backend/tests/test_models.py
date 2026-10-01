@@ -10,7 +10,7 @@ import pytest
 from bson import ObjectId
 from pydantic import ValidationError
 
-from models import ClinicalRecord, ECGRecording, PredictionResult, User, UserRole
+from models import ClinicalRecord, ECGRecording, Patient, PredictionResult, User, UserRole
 
 
 def _pid() -> str:
@@ -138,3 +138,52 @@ class TestPredictionResult:
         )
         assert pred.shap_values is None
         assert pred.lime_values is None
+
+
+class TestPatientModel:
+    def test_valid_patient_creation(self):
+        p = Patient(
+            patientId="PT-1001",
+            name="John Doe",
+            age=52,
+            gender="Male",
+            bloodPressure="130/85",
+            cholesterol=210,
+            heartRate=72,
+            diabetes="No",
+            smoking="Yes",
+            risk_score=0.62,
+            riskLevel="High Risk",
+        )
+        assert p.patient_id == "PT-1001"
+        assert p.name == "John Doe"
+        assert p.age == 52
+        assert p.risk_level == "High Risk"
+        assert p.risk_score == 0.62
+
+    def test_invalid_age_rejected(self):
+        with pytest.raises(ValidationError):
+            Patient(
+                patientId="PT-1002",
+                name="Jane Doe",
+                age=150,  # exceeds 120
+                gender="Female",
+            )
+
+    def test_empty_patient_id_rejected(self):
+        with pytest.raises(ValidationError):
+            Patient(
+                patientId="",
+                name="Jane Doe",
+                age=35,
+                gender="Female",
+            )
+
+    def test_flexible_cholesterol_and_heart_rate(self):
+        # Supports numeric, string, or None
+        p1 = Patient(patientId="PT-1", name="A", age=40, gender="F", cholesterol="Normal")
+        p2 = Patient(patientId="PT-2", name="B", age=40, gender="M", cholesterol=190.5)
+        p3 = Patient(patientId="PT-3", name="C", age=40, gender="M", cholesterol=None)
+        assert p1.cholesterol == "Normal"
+        assert p2.cholesterol == 190.5
+        assert p3.cholesterol is None

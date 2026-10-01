@@ -19,6 +19,7 @@ from config import settings
 from database import get_collection_stats, init_indexes, ping_db, verify_connection
 from upload import router as upload_router
 from predict import router as predict_router
+from patient_api import router as patient_router
 from ml_engine import clinical_model
 
 UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
@@ -74,6 +75,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(upload_router)
 app.include_router(predict_router)
+app.include_router(patient_router)
 
 
 # ── System Endpoints ─────────────────────────────────────────────
