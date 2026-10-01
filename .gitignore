@@ -8,3 +8,5 @@ __pycache__/
 .venv/
 venv/
 Trained Models/catboost_info/
+
+DataSets/WFDB_Ningbo/
