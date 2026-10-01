@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+
 import {
     getDashboardTestData,
     getRiskClass,
     getRiskDescription,
 } from "../services/dashboardService";
+
+import ClinicalStatistics from "../components/ClinicalStatistics";
 
 const Dashboard = () => {
     const [patient, setPatient] = useState(null);
