@@ -94,6 +94,7 @@ def init_indexes() -> None:
     database["clinical_records"].create_index([("patient_id", 1), ("recorded_at", -1)])
     database["ecg_recordings"].create_index("patient_id")
     database["ecg_recordings"].create_index("stored_name", unique=True)
+    database["ecg_recordings"].create_index([("patient_id", 1), ("uploaded_at", -1)])
     database["prediction_results"].create_index("patient_id")
     database["prediction_results"].create_index([("patient_id", 1), ("created_at", -1)])
     database["patients"].create_index("patientId", unique=True)
@@ -127,6 +128,22 @@ def get_patient_clinical_history(patient_id: str, limit: int = 10) -> list:
         database["clinical_records"]
         .find({"patient_id": patient_id})
         .sort("recorded_at", -1)
+        .limit(limit)
+    )
+    return list(cursor)
+
+
+def get_patient_ecg_history(patient_id: str, limit: int = 10) -> list:
+    """Return a patient's most recent ECG recordings, newest first.
+
+    Uses the (patient_id, uploaded_at) compound index created in
+    init_indexes(). Added ahead of the ECG prediction endpoint (not yet
+    built) so that groundwork is ready when someone wires it up.
+    """
+    cursor = (
+        database["ecg_recordings"]
+        .find({"patient_id": patient_id})
+        .sort("uploaded_at", -1)
         .limit(limit)
     )
     return list(cursor)
