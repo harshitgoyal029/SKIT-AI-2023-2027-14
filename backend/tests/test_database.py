@@ -66,6 +66,34 @@ class TestGetPatientClinicalHistory:
         assert history == []
 
 
+class TestGetPatientEcgHistory:
+    def test_returns_recordings_newest_first(self, mock_database):
+        patient_id = "patient-1"
+        mock_database["ecg_recordings"].insert_many([
+            {"patient_id": patient_id, "original_name": "a", "uploaded_at": "2026-01-01"},
+            {"patient_id": patient_id, "original_name": "b", "uploaded_at": "2026-06-01"},
+            {"patient_id": patient_id, "original_name": "c", "uploaded_at": "2026-03-01"},
+        ])
+
+        history = db_module.get_patient_ecg_history(patient_id)
+
+        assert [r["original_name"] for r in history] == ["b", "c", "a"]
+
+    def test_only_returns_matching_patient(self, mock_database):
+        mock_database["ecg_recordings"].insert_many([
+            {"patient_id": "patient-1", "original_name": "mine", "uploaded_at": "2026-01-01"},
+            {"patient_id": "patient-2", "original_name": "not-mine", "uploaded_at": "2026-01-01"},
+        ])
+
+        history = db_module.get_patient_ecg_history("patient-1")
+
+        assert len(history) == 1
+        assert history[0]["original_name"] == "mine"
+
+    def test_no_recordings_returns_empty_list(self, mock_database):
+        assert db_module.get_patient_ecg_history("nobody-here") == []
+
+
 class TestGetCollectionStats:
     def test_counts_documents_per_collection(self, mock_database):
         mock_database["users"].insert_many([{"email": "a@x.com"}, {"email": "b@x.com"}])
@@ -81,7 +109,7 @@ class TestGetCollectionStats:
         stats = db_module.get_collection_stats()
 
         expected_collections = {
-            "users", "patient_profiles", "health_profiles",
+            "users", "patients", "patient_profiles", "health_profiles",
             "medical_documents", "clinical_records", "ecg_recordings",
             "prediction_results",
         }
