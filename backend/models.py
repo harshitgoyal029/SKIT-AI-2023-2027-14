@@ -115,7 +115,7 @@ class ECGRecording(BaseModel):
 
     # Signal properties
     sampling_rate_hz: int = 500
-    lead_count: int = 1
+    lead_count: int = 12  # project's CNN-BiLSTM model expects 12-lead ECGs
     duration_seconds: Optional[float] = None
 
     # Processing
