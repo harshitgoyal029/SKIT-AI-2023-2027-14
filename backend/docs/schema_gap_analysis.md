@@ -55,3 +55,26 @@ Raise this at the next team sync. Two reasonable paths:
 
 Either is fine; the current state (undocumented, silently disconnected)
 is the only actual problem.
+
+## Update — 2026-10-06: ECG schema checked, no gap found
+
+Deepak's new CNN-BiLSTM ECG model (`Trained Models/ecg_model_info.json`)
+was checked against `ECGRecording` the same way the clinical schema was
+checked above. Unlike `ClinicalRecord`, this one lines up:
+
+| `ECGRecording` field | Model's actual requirement | Match? |
+|---|---|---|
+| `sampling_rate_hz` (default 500) | `sampling_frequency: 500` | Yes |
+| `lead_count` (default 1) | `leads: 12` | **No — default needs updating to 12 for this dataset** |
+| `duration_seconds` | `duration_seconds: 10` | Yes |
+
+One real gap: `lead_count` defaults to `1` in the schema, but this
+model expects 12-lead ECGs. Not a blocker (the field is still a plain
+int, callers can pass 12), but the default should probably change, or
+at least a comment should note which lead count this project's model
+actually expects.
+
+Also noted: there is currently **no backend endpoint** serving ECG
+predictions yet (`predict.py` only has `/predict/clinical`) — unlike
+the clinical pipeline, the ECG model isn't wired up to the API yet.
+That's an API-layer task, flagged here for whoever picks it up next.
