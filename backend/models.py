@@ -78,7 +78,7 @@ class ClinicalRecord(BaseModel):
 
     # Demographics & vitals
     age: Optional[int] = Field(default=None, ge=1, le=150)
-    sex: Optional[Literal["M", "F"]] = None
+    sex: Optional[Literal["M", "F", "Male", "Female"]] = None
     chest_pain_type: Optional[Literal["TA", "ATA", "NAP", "ASY"]] = None
     resting_bp: Optional[int] = Field(default=None, ge=0, le=300)
     cholesterol: Optional[int] = Field(default=None, ge=0, le=1000)

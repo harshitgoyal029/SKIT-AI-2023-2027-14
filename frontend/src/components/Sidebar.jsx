@@ -7,7 +7,7 @@ const ROLE_NAV = {
         badge: "🫀 Patient",
         links: [
             { to: "/dashboard", icon: "🫀", label: "My Heart Health" },
-            { to: "/dashboard", icon: "📋", label: "Vitals & Care Plan" },
+            { to: "/data-upload", icon: "📁", label: "Upload Vitals & ECG" },
         ],
     },
     doctor: {
@@ -15,8 +15,8 @@ const ROLE_NAV = {
         badge: "🩺 Doctor",
         links: [
             { to: "/dashboard", icon: "📊", label: "Diagnostic Dashboard" },
-            { to: "/dashboard", icon: "🔬", label: "SHAP Explainability" },
             { to: "/patient-registration", icon: "👥", label: "Patient Cases" },
+            { to: "/data-upload", icon: "📁", label: "Upload Clinical & ECG" },
         ],
     },
     clinician: {
@@ -25,6 +25,7 @@ const ROLE_NAV = {
         links: [
             { to: "/dashboard", icon: "▣", label: "Cohort Overview" },
             { to: "/patient-registration", icon: "＋", label: "New Patient Intake" },
+            { to: "/data-upload", icon: "📁", label: "Upload Clinical & ECG" },
         ],
     },
 };

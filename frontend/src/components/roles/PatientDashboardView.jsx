@@ -37,6 +37,13 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                 </div>
 
                 <div className="patient-hero-actions">
+                    <Link
+                        to="/data-upload"
+                        className="patient-btn primary"
+                        style={{ textDecoration: "none" }}
+                    >
+                        📁 Upload Vitals & ECG
+                    </Link>
                     <button
                         type="button"
                         className="patient-btn outline"

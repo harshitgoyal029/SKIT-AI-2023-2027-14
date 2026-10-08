@@ -2976,4 +2976,107 @@ select {
     font-size: 13px;
     line-height: 1.5;
 }
+
+/* ==========================================================================
+   Data Upload Page Styles
+   ========================================================================== */
+
+.data-upload-page {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.upload-nav-tabs {
+    display: flex;
+    gap: 10px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.upload-tab-btn {
+    padding: 10px 20px;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 600;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.upload-tab-btn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.upload-tab-btn.active {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.2);
+}
+
+.upload-card {
+    padding: 28px;
+}
+
+.card-header-styled {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.card-header-styled h3 {
+    margin: 0 0 6px;
+    font-size: 20px;
+    color: #0f172a;
+}
+
+.card-header-styled p {
+    margin: 0;
+    color: #64748b;
+    font-size: 14px;
+}
+
+.upload-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+}
+
+.file-dropzone {
+    border: 2px dashed #94a3b8;
+    border-radius: 14px;
+    background: #f8fafc;
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.file-dropzone:hover {
+    border-color: #0284c7;
+    background: #f0f9ff;
+}
+
+.dropzone-icon {
+    font-size: 40px;
+    margin-bottom: 10px;
+}
+
+.file-dropzone h4 {
+    margin: 0 0 6px;
+    font-size: 16px;
+    color: #0f172a;
+}
+
+.file-dropzone p {
+    margin: 0;
+    font-size: 13px;
+    color: #64748b;
+}
+
 

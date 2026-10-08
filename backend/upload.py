@@ -107,10 +107,17 @@ def submit_clinical_data(
 ) -> dict:
     """Submit a clinical observation (vitals, lab results)."""
     patient_id = str(user["_id"])
+    data = body.model_dump()
+    if data.get("sex"):
+        raw_sex = str(data["sex"]).strip()
+        if raw_sex.lower() in ("m", "male"):
+            data["sex"] = "M"
+        elif raw_sex.lower() in ("f", "female"):
+            data["sex"] = "F"
 
     record = ClinicalRecord(
         patient_id=patient_id,
-        **body.model_dump(),
+        **data,
     )
     result = db["clinical_records"].insert_one(
         record.model_dump(by_alias=True, exclude={"id"})
@@ -170,7 +177,7 @@ async def upload_ecg(
     sampling_rate_hz: int = Form(default=500),
     lead_count: int = Form(default=1),
     duration_seconds: Optional[float] = Form(default=None),
-    user: dict = Depends(require_role(UserRole.patient, UserRole.clinician, UserRole.lab_technician)),
+    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor, UserRole.clinician, UserRole.lab_technician)),
     db: Database = Depends(get_db),
 ) -> dict:
     """Upload an ECG signal file (CSV, TXT, DAT, HEA, PDF, or image)."""

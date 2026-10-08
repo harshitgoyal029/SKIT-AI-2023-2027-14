@@ -131,7 +131,23 @@ const ClinicianDashboardView = ({ currentUser }) => {
                     </div>
                 </div>
 
-                <div className="clinician-hero-actions">
+                <div className="clinician-hero-actions" style={{ display: "flex", gap: "10px" }}>
+                    <Link
+                        to="/data-upload"
+                        className="clinician-action-btn"
+                        style={{
+                            background: "#ffffff",
+                            border: "1.5px solid #ddd6fe",
+                            color: "#7c3aed",
+                            textDecoration: "none",
+                            padding: "10px 18px",
+                            borderRadius: "9px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                        }}
+                    >
+                        📁 Upload Clinical / ECG
+                    </Link>
                     <Link to="/patient-registration" className="clinician-action-btn primary">
                         ＋ New Patient Intake
                     </Link>

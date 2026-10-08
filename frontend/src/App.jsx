@@ -9,6 +9,7 @@ import {
 import DashboardLayout from "./layouts/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import PatientRegistration from "./pages/PatientRegistration";
+import DataUpload from "./pages/DataUpload";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
@@ -33,6 +34,11 @@ const App = () => {
                                 <Route
                                     path="/patient-registration"
                                     element={<PatientRegistration />}
+                                />
+
+                                <Route
+                                    path="/data-upload"
+                                    element={<DataUpload />}
                                 />
 
                                 <Route
