@@ -94,6 +94,7 @@ def init_indexes() -> None:
     database["clinical_records"].create_index([("patient_id", 1), ("recorded_at", -1)])
     database["ecg_recordings"].create_index("patient_id")
     database["ecg_recordings"].create_index("stored_name", unique=True)
+    database["ecg_recordings"].create_index([("patient_id", 1), ("uploaded_at", -1)])
     database["prediction_results"].create_index("patient_id")
     database["prediction_results"].create_index([("patient_id", 1), ("created_at", -1)])
     database["patients"].create_index("patientId", unique=True)
@@ -132,6 +133,22 @@ def get_patient_clinical_history(patient_id: str, limit: int = 10) -> list:
     return list(cursor)
 
 
+def get_patient_ecg_history(patient_id: str, limit: int = 10) -> list:
+    """Return a patient's most recent ECG recordings, newest first.
+
+    Uses the (patient_id, uploaded_at) compound index created in
+    init_indexes(). Added ahead of the ECG prediction endpoint (not yet
+    built) so that groundwork is ready when someone wires it up.
+    """
+    cursor = (
+        database["ecg_recordings"]
+        .find({"patient_id": patient_id})
+        .sort("uploaded_at", -1)
+        .limit(limit)
+    )
+    return list(cursor)
+
+
 def get_patient_by_identifier(identifier: str, db: Database | None = None) -> dict | None:
     """Find a patient document by MongoDB _id (if valid ObjectId) or by clinical patientId."""
     from bson import ObjectId
@@ -148,3 +165,19 @@ def get_patient_by_identifier(identifier: str, db: Database | None = None) -> di
         except Exception:
             doc = None
     return doc
+
+
+def get_patient_prediction_history(patient_id: str, limit: int = 10, db: Database | None = None) -> list:
+    """Return a patient's most recent AI prediction results, newest first.
+
+    Uses the (patient_id, created_at) compound index created in
+    init_indexes(). Groundwork for the SHAP/LIME explanation history UI.
+    """
+    target_db = db if db is not None else database
+    cursor = (
+        target_db["prediction_results"]
+        .find({"patient_id": patient_id})
+        .sort("created_at", -1)
+        .limit(limit)
+    )
+    return list(cursor)

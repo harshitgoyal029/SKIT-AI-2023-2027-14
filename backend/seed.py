@@ -115,6 +115,74 @@ def seed_ecg_metadata(db) -> None:
     print("  ✓ Created sample ECG metadata entry")
 
 
+SAMPLE_PATIENTS = [
+    {
+        "patientId": "CVD-2026-001",
+        "name": "Rajesh Kumar",
+        "age": 58,
+        "gender": "Male",
+        "phone": "+91 98765 43210",
+        "email": "rajesh.kumar@example.com",
+        "bloodPressure": "145/92",
+        "cholesterol": 240,
+        "heartRate": 84,
+        "diabetes": "Yes",
+        "smoking": "Yes",
+        "familyHistory": "Yes",
+        "risk_score": 0.78,
+        "riskLevel": "High Risk",
+        "top_contributing_features": ["resting_bp", "cholesterol", "age", "diabetes"],
+    },
+    {
+        "patientId": "CVD-2026-002",
+        "name": "Sunita Devi",
+        "age": 46,
+        "gender": "Female",
+        "phone": "+91 98123 45678",
+        "email": "sunita.devi@example.com",
+        "bloodPressure": "118/76",
+        "cholesterol": 185,
+        "heartRate": 72,
+        "diabetes": "No",
+        "smoking": "No",
+        "familyHistory": "No",
+        "risk_score": 0.22,
+        "riskLevel": "Low Risk",
+        "top_contributing_features": ["max_heart_rate", "st_depression"],
+    },
+    {
+        "patientId": "CVD-2026-003",
+        "name": "Vikram Singh",
+        "age": 62,
+        "gender": "Male",
+        "phone": "+91 99234 56789",
+        "email": "vikram.singh@example.com",
+        "bloodPressure": "158/98",
+        "cholesterol": 275,
+        "heartRate": 90,
+        "diabetes": "Yes",
+        "smoking": "Yes",
+        "familyHistory": "Yes",
+        "risk_score": 0.89,
+        "riskLevel": "Very High Risk",
+        "top_contributing_features": ["cholesterol", "resting_bp", "exercise_angina"],
+    },
+]
+
+
+def seed_patients(db) -> None:
+    """Create sample patient profiles with clinical vitals for dashboard testing."""
+    from models import Patient
+    patients_col = db["patients"]
+    for data in SAMPLE_PATIENTS:
+        if patients_col.find_one({"patientId": data["patientId"]}):
+            print(f"  ⊘ Skipped patient (exists): {data['patientId']}")
+            continue
+        patient = Patient(**data)
+        patients_col.insert_one(patient.model_dump(by_alias=True, exclude={"id"}))
+        print(f"  ✓ Created patient: {data['patientId']} - {data['name']}")
+
+
 def main() -> None:
     print("=" * 50)
     print("  CardioXAI — Database Seed Script")
@@ -129,6 +197,9 @@ def main() -> None:
     print("→ Seeding users...")
     seed_users(db)
 
+    print("\n→ Seeding registered patients...")
+    seed_patients(db)
+
     print("\n→ Seeding clinical records...")
     seed_clinical_data(db)
 
@@ -139,7 +210,7 @@ def main() -> None:
     print("\n" + "=" * 50)
     print("  Database Summary")
     print("=" * 50)
-    for name in ["users", "clinical_records", "ecg_recordings"]:
+    for name in ["users", "patients", "clinical_records", "ecg_recordings"]:
         count = db[name].count_documents({})
         print(f"  {name}: {count} document(s)")
     print()

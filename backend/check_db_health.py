@@ -23,8 +23,9 @@ EXPECTED_INDEXES = {
     "health_profiles": [(("patient_id", 1),)],
     "medical_documents": [(("patient_id", 1),), (("stored_name", 1),)],
     "clinical_records": [(("patient_id", 1),), (("patient_id", 1), ("recorded_at", -1))],
-    "ecg_recordings": [(("patient_id", 1),), (("stored_name", 1),)],
+    "ecg_recordings": [(("patient_id", 1),), (("stored_name", 1),), (("patient_id", 1), ("uploaded_at", -1))],
     "prediction_results": [(("patient_id", 1),), (("patient_id", 1), ("created_at", -1))],
+    "patients": [(("patientId", 1),), (("createdAt", -1),), (("riskLevel", 1),)],
 }
 
 
