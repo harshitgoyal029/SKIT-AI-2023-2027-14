@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiRequest } from "../services/api";
 
 const PatientRegistration = () => {
     const navigate = useNavigate();
@@ -324,32 +325,10 @@ const PatientRegistration = () => {
         try {
             const payload = preparePayload();
 
-            const response = await fetch(
-                "http://localhost:8000/api/patients",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(payload)
-                }
-            );
-
-            let data = null;
-
-            try {
-                data = await response.json();
-            } catch (parseError) {
-                data = null;
-            }
-
-            if (!response.ok) {
-                throw new Error(
-                    data?.detail ||
-                    data?.message ||
-                    "Failed to register patient."
-                );
-            }
+            const data = await apiRequest("/api/patients", {
+                method: "POST",
+                body: payload,
+            });
 
             sessionStorage.setItem(
                 "cvd_xai_patient",
@@ -359,6 +338,11 @@ const PatientRegistration = () => {
             navigate("/dashboard");
         } catch (requestError) {
             console.error("Patient registration failed:", requestError);
+
+            if (requestError.status === 401) {
+                navigate("/login", { replace: true });
+                return;
+            }
 
             setError(
                 requestError.message ||
