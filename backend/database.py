@@ -165,3 +165,19 @@ def get_patient_by_identifier(identifier: str, db: Database | None = None) -> di
         except Exception:
             doc = None
     return doc
+
+
+def get_patient_prediction_history(patient_id: str, limit: int = 10, db: Database | None = None) -> list:
+    """Return a patient's most recent AI prediction results, newest first.
+
+    Uses the (patient_id, created_at) compound index created in
+    init_indexes(). Groundwork for the SHAP/LIME explanation history UI.
+    """
+    target_db = db if db is not None else database
+    cursor = (
+        target_db["prediction_results"]
+        .find({"patient_id": patient_id})
+        .sort("created_at", -1)
+        .limit(limit)
+    )
+    return list(cursor)
