@@ -1,31 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 
-const ROLE_BADGES = {
-    doctor: { label: "Doctor (Cardiologist)", initials: "DR", color: "#0d9488", icon: "🩺" },
-    clinician: { label: "Clinician / Lab", initials: "CL", color: "#7c3aed", icon: "🔬" },
-    patient: { label: "Patient", initials: "PT", color: "#0284c7", icon: "🫀" },
-    admin: { label: "Administrator", initials: "AD", color: "#e11d48", icon: "🛡" },
-};
-
-const Navbar = ({ onMenuClick }) => {
-    const navigate = useNavigate();
+const Navbar = ({ user, onMenuClick, onLogout }) => {
     const [notifications, setNotifications] = useState(0);
     const [showProfile, setShowProfile] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [currentUser, setCurrentUser] = useState(null);
 
     useEffect(() => {
-        // Load logged in user info
-        const stored = localStorage.getItem("cvd_user");
-        if (stored) {
-            try {
-                setCurrentUser(JSON.parse(stored));
-            } catch (e) {
-                setCurrentUser(null);
-            }
-        }
-
         const timer = setInterval(() => {
             setCurrentTime(new Date());
         }, 60000);
@@ -38,25 +18,13 @@ const Navbar = ({ onMenuClick }) => {
     };
 
     const toggleProfile = () => {
-        setShowProfile((previousState) => !previousState);
-    };
-
-    const handleSignOut = () => {
-        localStorage.removeItem("cvd_token");
-        localStorage.removeItem("cvd_user");
-        localStorage.removeItem("cvd_role");
-        setShowProfile(false);
-        navigate("/login");
+        setShowProfile(previousState => !previousState);
     };
 
     const formattedTime = currentTime.toLocaleTimeString("en-IN", {
         hour: "2-digit",
-        minute: "2-digit",
+        minute: "2-digit"
     });
-
-    const userRole = currentUser?.role || "clinician";
-    const roleMeta = ROLE_BADGES[userRole] || ROLE_BADGES.clinician;
-    const userName = currentUser?.name || "Dr. Alex Mercer";
 
     return (
         <header className="navbar">
@@ -80,7 +48,7 @@ const Navbar = ({ onMenuClick }) => {
 
             <div className="navbar-right">
                 <div className="navbar-time">
-                    <span>{roleMeta.icon} {roleMeta.label}</span>
+                    <span>Clinical System</span>
                     <strong>{formattedTime}</strong>
                 </div>
 
@@ -104,16 +72,11 @@ const Navbar = ({ onMenuClick }) => {
                         className="profile"
                         onClick={toggleProfile}
                     >
-                        <div
-                            className="profile-avatar"
-                            style={{ background: roleMeta.color }}
-                        >
-                            {roleMeta.initials}
-                        </div>
+                        <div className="profile-avatar">{(user?.name || "DR").slice(0, 2).toUpperCase()}</div>
 
                         <div>
-                            <strong>{userName}</strong>
-                            <span>{roleMeta.label}</span>
+                            <strong>{user?.name || "Clinician"}</strong>
+                            <span>{user?.role || "Medical Professional"}</span>
                         </div>
 
                         <span className="profile-arrow">
@@ -124,63 +87,33 @@ const Navbar = ({ onMenuClick }) => {
                     {showProfile && (
                         <div className="profile-menu">
                             <div className="profile-menu-header">
-                                <div
-                                    className="profile-avatar large"
-                                    style={{ background: roleMeta.color }}
-                                >
-                                    {roleMeta.initials}
+                                <div className="profile-avatar large">
+                                    {(user?.name || "DR").slice(0, 2).toUpperCase()}
                                 </div>
 
                                 <div>
-                                    <strong>{userName}</strong>
-                                    <span style={{ color: roleMeta.color }}>
-                                        {roleMeta.label}
-                                    </span>
-                                    {currentUser?.email && (
-                                        <small className="profile-menu-email">
-                                            {currentUser.email}
-                                        </small>
-                                    )}
+                                    <strong>{user?.name || "Clinician"}</strong>
+                                    <span>{user?.email || "Medical Professional"}</span>
                                 </div>
                             </div>
 
                             <div className="profile-menu-divider"></div>
 
-                            <Link
-                                to="/dashboard"
-                                className="profile-menu-item"
-                                onClick={() => setShowProfile(false)}
-                            >
-                                📊 Dashboard
-                            </Link>
+                            <button type="button">
+                                👤 Profile
+                            </button>
 
-                            <Link
-                                to="/patient-registration"
-                                className="profile-menu-item"
-                                onClick={() => setShowProfile(false)}
-                            >
-                                ＋ New Patient Intake
-                            </Link>
+                            <button type="button">
+                                ⚙ Settings
+                            </button>
 
-                            <div className="profile-menu-divider"></div>
+                            <button type="button">
+                                🔒 Security
+                            </button>
 
-                            {currentUser ? (
-                                <button
-                                    type="button"
-                                    className="profile-menu-item sign-out-btn"
-                                    onClick={handleSignOut}
-                                >
-                                    🚪 Sign Out ({roleMeta.label})
-                                </button>
-                            ) : (
-                                <Link
-                                    to="/login"
-                                    className="profile-menu-item sign-in-btn"
-                                    onClick={() => setShowProfile(false)}
-                                >
-                                    🔑 Switch Portal / Login
-                                </Link>
-                            )}
+                            <button type="button" onClick={onLogout}>
+                                ↪ Logout
+                            </button>
                         </div>
                     )}
                 </div>

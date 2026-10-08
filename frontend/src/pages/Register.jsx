@@ -1,41 +1,31 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
-const ROLES = [
-    { id: "patient", label: "Patient", icon: "🫀", color: "#0284c7" },
-    { id: "doctor", label: "Doctor", icon: "🩺", color: "#0d9488" },
-    { id: "clinician", label: "Clinician", icon: "🔬", color: "#7c3aed" },
-];
+import { register } from "../services/authService";
 
 const Register = () => {
     const navigate = useNavigate();
-    const [selectedRole, setSelectedRole] = useState("patient");
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         password: "",
         confirmPassword: "",
     });
-
     const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState(false);
 
-    const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
-        });
+    const handleChange = (event) => {
+        setFormData((current) => ({
+            ...current,
+            [event.target.name]: event.target.value,
+        }));
         setError("");
-        setSuccess("");
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleSubmit = async (event) => {
+        event.preventDefault();
         setError("");
-        setSuccess("");
 
-        if (!formData.name.trim()) {
+        if (formData.name.trim().length < 2) {
             setError("Please enter your full name.");
             return;
         }
@@ -45,13 +35,8 @@ const Register = () => {
             return;
         }
 
-        if (!formData.password) {
-            setError("Please enter a password.");
-            return;
-        }
-
-        if (formData.password.length < 6) {
-            setError("Password must contain at least 6 characters.");
+        if (formData.password.length < 8) {
+            setError("Password must contain at least 8 characters.");
             return;
         }
 
@@ -63,31 +48,13 @@ const Register = () => {
         setLoading(true);
 
         try {
-            const response = await fetch("http://localhost:8000/api/auth/register", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    name: formData.name.trim(),
-                    email: formData.email.trim().toLowerCase(),
-                    password: formData.password,
-                    role: selectedRole,
-                }),
+            const response = await register(formData);
+            navigate("/login", {
+                replace: true,
+                state: { message: response?.message || "Account created successfully. You can now sign in." },
             });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data?.detail || "Registration failed. Please try again.");
-            }
-
-            setSuccess("Account registered successfully! Redirecting to login...");
-            setTimeout(() => {
-                navigate("/login");
-            }, 1500);
-        } catch (err) {
-            setError(err.message || "Failed to connect to authentication server.");
+        } catch (requestError) {
+            setError(requestError.message || "Unable to create the account.");
         } finally {
             setLoading(false);
         }
@@ -95,97 +62,75 @@ const Register = () => {
 
     return (
         <div className="auth-page">
-            <div className="auth-card role-auth-card">
-                {/* Role Switcher Tabs */}
-                <div className="role-selector-header">
-                    <span className="role-selector-title">Register Account Role</span>
-                    <div className="role-tabs">
-                        {ROLES.map((r) => (
-                            <button
-                                key={r.id}
-                                type="button"
-                                className={`role-tab-btn ${selectedRole === r.id ? "active" : ""}`}
-                                onClick={() => setSelectedRole(r.id)}
-                            >
-                                <span className="role-tab-icon">{r.icon}</span>
-                                <span>{r.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="auth-logo">
-                    ❤️
-                </div>
+            <div className="auth-card">
+                <div className="auth-logo">♥</div>
 
                 <div className="auth-header">
-                    <h1>Create {selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)} Account</h1>
-                    <p>Register as a certified {selectedRole} on the CVD-XAI Platform</p>
+                    <h1>Create Account</h1>
+                    <p>Register for the CVD-XAI clinical system</p>
                 </div>
 
-                {error && (
-                    <div className="form-error">
-                        ⚠ {error}
-                    </div>
-                )}
+                {error && <div className="form-error">⚠ {error}</div>}
 
-                {success && (
-                    <div className="form-success">
-                        ✓ {success}
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} noValidate>
                     <div className="form-group">
-                        <label>Full Name</label>
+                        <label htmlFor="register-name">Full Name</label>
                         <input
+                            id="register-name"
                             type="text"
                             name="name"
+                            autoComplete="name"
                             placeholder="Enter your full name"
                             value={formData.name}
                             onChange={handleChange}
+                            disabled={loading}
                         />
                     </div>
 
                     <div className="form-group">
-                        <label>Email Address</label>
+                        <label htmlFor="register-email">Email</label>
                         <input
+                            id="register-email"
                             type="email"
                             name="email"
+                            autoComplete="email"
                             placeholder="Enter your email"
                             value={formData.email}
                             onChange={handleChange}
+                            disabled={loading}
                         />
                     </div>
 
                     <div className="form-group">
-                        <label>Password</label>
+                        <label htmlFor="register-password">Password</label>
                         <input
+                            id="register-password"
                             type="password"
                             name="password"
-                            placeholder="Create a password (min. 6 characters)"
+                            autoComplete="new-password"
+                            placeholder="Minimum 8 characters"
                             value={formData.password}
                             onChange={handleChange}
+                            disabled={loading}
                         />
                     </div>
 
                     <div className="form-group">
-                        <label>Confirm Password</label>
+                        <label htmlFor="register-confirm-password">Confirm Password</label>
                         <input
+                            id="register-confirm-password"
                             type="password"
                             name="confirmPassword"
-                            placeholder="Confirm your password"
+                            autoComplete="new-password"
+                            placeholder="Re-enter your password"
                             value={formData.confirmPassword}
                             onChange={handleChange}
+                            disabled={loading}
                         />
                     </div>
 
-                    <button
-                        type="submit"
-                        className="primary-btn auth-btn"
-                        disabled={loading}
-                    >
-                        {loading ? "Registering..." : `Register as ${selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1)}`}
+                    <button type="submit" className="primary-btn auth-btn" disabled={loading}>
+                        {loading ? "Creating account..." : "Create Account"}
                     </button>
                 </form>
 
