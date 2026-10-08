@@ -1662,3 +1662,184 @@ select {
         display: none;
     }
 }
+
+/* ==========================================================================
+   Role-Based Authentication & Navigation Styles
+   ========================================================================== */
+
+.role-auth-card {
+    max-width: 480px;
+}
+
+.role-selector-header {
+    margin-bottom: 22px;
+}
+
+.role-selector-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #64748b;
+    margin-bottom: 9px;
+    display: block;
+    text-align: center;
+}
+
+.role-tabs {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+
+.role-tab-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 6px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.role-tab-btn:hover {
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+}
+
+.role-tab-btn.active {
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
+    font-weight: 700;
+}
+
+.role-tab-icon {
+    font-size: 20px;
+    line-height: 1;
+}
+
+.role-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.demo-credentials-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 20px;
+    padding: 12px 14px;
+    border: 1.5px dashed;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.demo-credentials-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.demo-credentials-info strong {
+    color: #334155;
+    font-size: 11px;
+}
+
+.demo-credentials-info span {
+    color: #475569;
+    font-size: 12px;
+    font-family: monospace;
+}
+
+.demo-fill-btn {
+    border: 1.5px solid currentColor;
+    background: #ffffff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.demo-fill-btn:hover {
+    filter: brightness(0.96);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.form-success {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.profile-menu-item {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 10px 12px;
+    text-align: left;
+    border-radius: 7px;
+    color: #334155;
+    cursor: pointer;
+    font-size: 13px;
+    text-decoration: none;
+    box-sizing: border-box;
+    transition: background 0.15s, color 0.15s;
+}
+
+.profile-menu-item:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.profile-menu-item.sign-out-btn {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.profile-menu-item.sign-out-btn:hover {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.profile-menu-item.sign-in-btn {
+    color: #0284c7;
+    font-weight: 600;
+}
+
+.profile-menu-item.sign-in-btn:hover {
+    background: #f0f9ff;
+    color: #0369a1;
+}
+
+.profile-menu-email {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+    word-break: break-all;
+}
