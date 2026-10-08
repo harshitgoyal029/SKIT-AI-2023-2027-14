@@ -1662,3 +1662,31 @@ select {
         display: none;
     }
 }
+.auth-loading-card {
+    text-align: center;
+}
+
+.auth-loading-card h2 {
+    margin-bottom: 8px;
+}
+
+.auth-loading-card p {
+    color: #7b8992;
+    font-size: 13px;
+}
+
+.form-success {
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    border: 1px solid #bfe7d4;
+    border-radius: 9px;
+    background: #effaf4;
+    color: #207a4b;
+    font-size: 13px;
+}
+
+.auth-card button:disabled,
+.auth-card input:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}

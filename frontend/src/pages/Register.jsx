@@ -1,28 +1,31 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { register } from "../services/authService";
 
 const Register = () => {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         password: "",
         confirmPassword: "",
     });
-
     const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
-        });
+    const handleChange = (event) => {
+        setFormData((current) => ({
+            ...current,
+            [event.target.name]: event.target.value,
+        }));
+        setError("");
     };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
+    const handleSubmit = async (event) => {
+        event.preventDefault();
         setError("");
 
-        if (!formData.name.trim()) {
+        if (formData.name.trim().length < 2) {
             setError("Please enter your full name.");
             return;
         }
@@ -32,13 +35,8 @@ const Register = () => {
             return;
         }
 
-        if (!formData.password) {
-            setError("Please enter a password.");
-            return;
-        }
-
-        if (formData.password.length < 6) {
-            setError("Password must contain at least 6 characters.");
+        if (formData.password.length < 8) {
+            setError("Password must contain at least 8 characters.");
             return;
         }
 
@@ -47,89 +45,99 @@ const Register = () => {
             return;
         }
 
-        // JWT registration API will be connected here by Kanishk.
-        console.log("Registration data:", formData);
+        setLoading(true);
+
+        try {
+            const response = await register(formData);
+            navigate("/login", {
+                replace: true,
+                state: { message: response?.message || "Account created successfully. You can now sign in." },
+            });
+        } catch (requestError) {
+            setError(requestError.message || "Unable to create the account.");
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
         <div className="auth-page">
             <div className="auth-card">
-
-                <div className="auth-logo">
-                    ❤️
-                </div>
+                <div className="auth-logo">♥</div>
 
                 <div className="auth-header">
                     <h1>Create Account</h1>
-                    <p>Register for your CVD-XAI account</p>
+                    <p>Register for the CVD-XAI clinical system</p>
                 </div>
 
-                {error && (
-                    <div className="form-error">
-                        ⚠ {error}
-                    </div>
-                )}
+                {error && <div className="form-error">⚠ {error}</div>}
 
-                <form onSubmit={handleSubmit}>
-
+                <form onSubmit={handleSubmit} noValidate>
                     <div className="form-group">
-                        <label>Full Name</label>
+                        <label htmlFor="register-name">Full Name</label>
                         <input
+                            id="register-name"
                             type="text"
                             name="name"
+                            autoComplete="name"
                             placeholder="Enter your full name"
                             value={formData.name}
                             onChange={handleChange}
+                            disabled={loading}
                         />
                     </div>
 
                     <div className="form-group">
-                        <label>Email</label>
+                        <label htmlFor="register-email">Email</label>
                         <input
+                            id="register-email"
                             type="email"
                             name="email"
+                            autoComplete="email"
                             placeholder="Enter your email"
                             value={formData.email}
                             onChange={handleChange}
+                            disabled={loading}
                         />
                     </div>
 
                     <div className="form-group">
-                        <label>Password</label>
+                        <label htmlFor="register-password">Password</label>
                         <input
+                            id="register-password"
                             type="password"
                             name="password"
-                            placeholder="Create a password"
+                            autoComplete="new-password"
+                            placeholder="Minimum 8 characters"
                             value={formData.password}
                             onChange={handleChange}
+                            disabled={loading}
                         />
                     </div>
 
                     <div className="form-group">
-                        <label>Confirm Password</label>
+                        <label htmlFor="register-confirm-password">Confirm Password</label>
                         <input
+                            id="register-confirm-password"
                             type="password"
                             name="confirmPassword"
-                            placeholder="Confirm your password"
+                            autoComplete="new-password"
+                            placeholder="Re-enter your password"
                             value={formData.confirmPassword}
                             onChange={handleChange}
+                            disabled={loading}
                         />
                     </div>
 
-                    <button
-                        type="submit"
-                        className="primary-btn auth-btn"
-                    >
-                        Create Account
+                    <button type="submit" className="primary-btn auth-btn" disabled={loading}>
+                        {loading ? "Creating account..." : "Create Account"}
                     </button>
-
                 </form>
 
                 <div className="auth-footer">
                     <span>Already have an account?</span>
-                    <Link to="/login">Login</Link>
+                    <Link to="/login">Sign In</Link>
                 </div>
-
             </div>
         </div>
     );
