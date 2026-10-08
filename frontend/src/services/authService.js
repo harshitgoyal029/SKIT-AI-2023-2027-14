@@ -11,6 +11,12 @@ export const login = async (email, password) => {
 
     localStorage.setItem(TOKEN_KEY, data.access_token);
     localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    // Mirror storage keys for backward compatibility across components
+    localStorage.setItem("cvd_token", data.access_token);
+    localStorage.setItem("cvd_user", JSON.stringify(data.user));
+    if (data.user?.role) {
+        localStorage.setItem("cvd_role", data.user.role);
+    }
 
     return data;
 };
@@ -62,5 +68,8 @@ export const isAuthenticated = () => Boolean(getAccessToken());
 export const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem("cvd_token");
+    localStorage.removeItem("cvd_user");
+    localStorage.removeItem("cvd_role");
     sessionStorage.removeItem("cvd_xai_patient");
 };

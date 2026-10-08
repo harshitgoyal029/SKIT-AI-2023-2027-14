@@ -7,6 +7,12 @@ Sprint 1(C): Clinical and ECG data upload APIs.
 Sprint 2(A): Database connection verification, health checks, and seed data.
 Sprint 2(B): Clinical prediction API (DNN inference).
 """
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 from contextlib import asynccontextmanager
 from pathlib import Path

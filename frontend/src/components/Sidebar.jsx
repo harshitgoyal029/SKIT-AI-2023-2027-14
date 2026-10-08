@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { getStoredUser } from "../services/authService";
 
 const ROLE_NAV = {
     patient: {
@@ -30,16 +31,16 @@ const ROLE_NAV = {
     },
 };
 
+const getRole = () => getStoredUser()?.role || localStorage.getItem("cvd_role") || "patient";
+
 const Sidebar = ({ isOpen = true, onClose }) => {
-    const [currentRole, setCurrentRole] = useState("clinician");
+    const [currentRole, setCurrentRole] = useState(getRole);
 
     useEffect(() => {
-        const role = localStorage.getItem("cvd_role") || "clinician";
-        setCurrentRole(role);
+        setCurrentRole(getRole());
 
         const handleStorageChange = () => {
-            const updatedRole = localStorage.getItem("cvd_role") || "clinician";
-            setCurrentRole(updatedRole);
+            setCurrentRole(getRole());
         };
 
         window.addEventListener("storage", handleStorageChange);

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { getApiUrl } from "../services/api";
 
 const DataUpload = () => {
     const [activeTab, setActiveTab] = useState("clinical");
@@ -35,7 +36,7 @@ const DataUpload = () => {
     const [ecgRecords, setEcgRecords] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
 
-    const token = localStorage.getItem("cvd_token");
+    const token = localStorage.getItem("cvd_xai_access_token") || localStorage.getItem("cvd_token");
 
     // Fetch history from MongoDB
     const fetchHistory = async () => {
@@ -43,10 +44,10 @@ const DataUpload = () => {
         setHistoryLoading(true);
         try {
             const [clinRes, ecgRes] = await Promise.all([
-                fetch("http://localhost:8000/api/data/clinical", {
+                fetch(getApiUrl("/api/data/clinical"), {
                     headers: { Authorization: `Bearer ${token}` },
                 }),
-                fetch("http://localhost:8000/api/data/ecg", {
+                fetch(getApiUrl("/api/data/ecg"), {
                     headers: { Authorization: `Bearer ${token}` },
                 }),
             ]);
@@ -112,7 +113,7 @@ const DataUpload = () => {
                 st_slope: clinicalForm.st_slope,
             };
 
-            const response = await fetch("http://localhost:8000/api/data/clinical", {
+            const response = await fetch(getApiUrl("/api/data/clinical"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -130,7 +131,12 @@ const DataUpload = () => {
             setSuccessMessage(`✓ Clinical data successfully saved to MongoDB (Record ID: ${data.id})!`);
             fetchHistory();
         } catch (err) {
-            setErrorMessage(err.message || "Network error submitting clinical data.");
+            const isFetchErr = err?.name === "TypeError" && String(err?.message).toLowerCase().includes("fetch");
+            setErrorMessage(
+                isFetchErr
+                    ? "Backend server is not reachable on port 8000. Please ensure the backend is running."
+                    : (err.message || "Network error submitting clinical data.")
+            );
         } finally {
             setLoading(false);
         }
@@ -170,7 +176,7 @@ const DataUpload = () => {
                 formData.append("duration_seconds", ecgDuration);
             }
 
-            const response = await fetch("http://localhost:8000/api/data/ecg", {
+            const response = await fetch(getApiUrl("/api/data/ecg"), {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -188,7 +194,12 @@ const DataUpload = () => {
             setSelectedFile(null);
             fetchHistory();
         } catch (err) {
-            setErrorMessage(err.message || "Network error uploading ECG recording.");
+            const isFetchErr = err?.name === "TypeError" && String(err?.message).toLowerCase().includes("fetch");
+            setErrorMessage(
+                isFetchErr
+                    ? "Backend server is not reachable on port 8000. Please ensure the backend is running."
+                    : (err.message || "Network error uploading ECG recording.")
+            );
         } finally {
             setLoading(false);
         }

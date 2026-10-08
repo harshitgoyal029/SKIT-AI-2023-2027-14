@@ -9,6 +9,11 @@ Creates test users (all 4 roles) and sample clinical/ECG records.
 Safe to run multiple times — skips data that already exists.
 """
 
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 from database import get_db, verify_connection
 from models import ClinicalRecord, ECGRecording, User, UserRole
 from security import hash_password
@@ -18,8 +23,9 @@ from security import hash_password
 
 TEST_USERS = [
     ("System Administrator", "admin@cardioxai.org", "Admin@123", UserRole.admin),
-    ("Dr. Aditi Sharma", "doctor@cardioxai.org", "Doctor@123", UserRole.doctor),
-    ("Rohan Mehta", "patient@cardioxai.org", "Patient@123", UserRole.patient),
+    ("Dr. Sarah Johnson, MD", "doctor@cardioxai.org", "Doctor@123", UserRole.doctor),
+    ("Dr. Alex Mercer, Clinician", "clinician@cardioxai.org", "Clinician@123", UserRole.clinician),
+    ("Jane Doe (Patient)", "patient@cardioxai.org", "Patient@123", UserRole.patient),
     ("Arjun Singh", "lab@cardioxai.org", "Lab@123", UserRole.lab_technician),
 ]
 
