@@ -27,7 +27,8 @@ const ProtectedRoute = ({ children }) => {
             } catch (error) {
                 console.error("Unable to verify authentication session:", error);
                 if (active) {
-                    setAuthenticated(false);
+                    // Keep the local session available during temporary backend/network outages.
+                    setAuthenticated(Boolean(getStoredUser()));
                 }
             } finally {
                 if (active) {
