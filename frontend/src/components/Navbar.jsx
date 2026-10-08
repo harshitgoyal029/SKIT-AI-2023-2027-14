@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-const Navbar = ({ onMenuClick }) => {
+const Navbar = ({ user, onMenuClick, onLogout }) => {
     const [notifications, setNotifications] = useState(0);
     const [showProfile, setShowProfile] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -72,11 +72,11 @@ const Navbar = ({ onMenuClick }) => {
                         className="profile"
                         onClick={toggleProfile}
                     >
-                        <div className="profile-avatar">DR</div>
+                        <div className="profile-avatar">{(user?.name || "DR").slice(0, 2).toUpperCase()}</div>
 
                         <div>
-                            <strong>Clinician</strong>
-                            <span>Medical Professional</span>
+                            <strong>{user?.name || "Clinician"}</strong>
+                            <span>{user?.role || "Medical Professional"}</span>
                         </div>
 
                         <span className="profile-arrow">
@@ -88,12 +88,12 @@ const Navbar = ({ onMenuClick }) => {
                         <div className="profile-menu">
                             <div className="profile-menu-header">
                                 <div className="profile-avatar large">
-                                    DR
+                                    {(user?.name || "DR").slice(0, 2).toUpperCase()}
                                 </div>
 
                                 <div>
-                                    <strong>Clinician</strong>
-                                    <span>Medical Professional</span>
+                                    <strong>{user?.name || "Clinician"}</strong>
+                                    <span>{user?.email || "Medical Professional"}</span>
                                 </div>
                             </div>
 
@@ -109,6 +109,10 @@ const Navbar = ({ onMenuClick }) => {
 
                             <button type="button">
                                 🔒 Security
+                            </button>
+
+                            <button type="button" onClick={onLogout}>
+                                ↪ Logout
                             </button>
                         </div>
                     )}
