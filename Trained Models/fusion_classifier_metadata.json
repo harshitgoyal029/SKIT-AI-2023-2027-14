@@ -1,0 +1,32 @@
+{
+  "model": "Clinical Embedding + ECG Embedding Fusion Classifier",
+  "clinical_embedding_dim": 16,
+  "ecg_embedding_dim": 128,
+  "fused_embedding_dim": 144,
+  "ecg_input_shape": [
+    5000,
+    12
+  ],
+  "clinical_features": [
+    "gender",
+    "height",
+    "weight",
+    "ap_hi",
+    "ap_lo",
+    "smoke",
+    "alco",
+    "active",
+    "age_years",
+    "BMI",
+    "pulse_pressure",
+    "MAP",
+    "cholesterol_2",
+    "cholesterol_3",
+    "gluc_2",
+    "gluc_3"
+  ],
+  "ecg_cache_dtype": "float16",
+  "pairing_method": "label-matched synthetic pairing",
+  "patient_level_multimodal": false,
+  "warning": "Clinical and ECG datasets do not share patient IDs. Metrics from this notebook must not be reported as real patient-level multimodal performance."
+}
