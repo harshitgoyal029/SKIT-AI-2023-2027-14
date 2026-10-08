@@ -39,6 +39,7 @@ def utcnow() -> datetime:
 class UserRole(str, enum.Enum):
     admin = "admin"
     doctor = "doctor"
+    clinician = "clinician"
     patient = "patient"
     lab_technician = "lab_technician"
 
@@ -49,7 +50,7 @@ class UserRole(str, enum.Enum):
 class User(BaseModel):
     """Document shape for the `users` collection."""
 
-    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True)
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, use_enum_values=True)
 
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     full_name: str
@@ -115,7 +116,7 @@ class ECGRecording(BaseModel):
 
     # Signal properties
     sampling_rate_hz: int = 500
-    lead_count: int = 1
+    lead_count: int = 12  # project's CNN-BiLSTM model expects 12-lead ECGs
     duration_seconds: Optional[float] = None
 
     # Processing

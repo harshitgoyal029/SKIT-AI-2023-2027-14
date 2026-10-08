@@ -81,7 +81,7 @@ class TestGetCollectionStats:
         stats = db_module.get_collection_stats()
 
         expected_collections = {
-            "users", "patient_profiles", "health_profiles",
+            "users", "patients", "patient_profiles", "health_profiles",
             "medical_documents", "clinical_records", "ecg_recordings",
             "prediction_results",
         }

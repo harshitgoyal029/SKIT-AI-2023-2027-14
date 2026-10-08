@@ -1,0 +1,18 @@
+{
+    "dataset": "Ningbo ECG",
+    "num_records": 34905,
+    "sampling_frequency": 500,
+    "leads": 12,
+    "samples_per_record": 5000,
+    "duration_seconds": 10,
+    "input_shape": [
+        5000,
+        12
+    ],
+    "architecture": "CNN + BiLSTM",
+    "embedding_dimension": 128,
+    "classification": "Normal vs Abnormal",
+    "normal_code": "426783006",
+    "model_path": "c:\\Users\\deepa\\Desktop\\CVD-XAI\\SKIT-AI-2023-2027-14\\Trained Models\\ecg_cnn_bilstm.keras",
+    "feature_extractor": "c:\\Users\\deepa\\Desktop\\CVD-XAI\\SKIT-AI-2023-2027-14\\Trained Models\\ecg_feature_extractor.keras"
+}

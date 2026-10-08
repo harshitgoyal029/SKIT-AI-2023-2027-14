@@ -90,6 +90,13 @@ class TestUser:
         )
         assert user.is_active is True
 
+    def test_clinician_role_valid(self):
+        user = User(
+            full_name="Clinician Test", email="clin@x.com",
+            password_hash="x", role=UserRole.clinician,
+        )
+        assert user.role == UserRole.clinician
+
     def test_invalid_role_rejected(self):
         with pytest.raises(ValidationError):
             User(
