@@ -1,19 +1,10 @@
-"""
-MongoDB connection, health checks, and initialization.
-
-Sprint 2(A): Enhanced with connection verification and health ping.
-"""
-
 from pymongo import MongoClient
 from pymongo.database import Database
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 
 from config import settings
 
-# ── Connection ───────────────────────────────────────────────────
-# Python 3.14 ships a stricter SSL module that can cause
-# TLSV1_ALERT_INTERNAL_ERROR with some MongoDB Atlas clusters.
-# We build a custom SSL context with certifi's CA bundle to fix this.
+
 
 import ssl
 
