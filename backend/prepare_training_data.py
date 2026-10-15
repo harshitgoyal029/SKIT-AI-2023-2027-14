@@ -132,15 +132,15 @@ def main():
         from database import get_db, get_training_cohort, get_multimodal_training_pairs
         db = get_db()
         cohort = get_training_cohort(db, limit=500)
-        print(f"✓ Retrieved {len(cohort)} clinical records from database")
+        print(f"[OK] Retrieved {len(cohort)} clinical records from database")
 
         X, y = prepare_training_dataset(cohort)
-        print(f"✓ Extracted Feature Matrix shape: {X.shape}")
-        print(f"✓ Extracted Target Vector shape:   {y.shape}")
-        print(f"✓ Features align with Deepak's 16-parameter input spec: {X.shape[1] == 16}")
+        print(f"[OK] Extracted Feature Matrix shape: {X.shape}")
+        print(f"[OK] Extracted Target Vector shape:   {y.shape}")
+        print(f"[OK] Features align with Deepak's 16-parameter input spec: {X.shape[1] == 16}")
 
         pairs = get_multimodal_training_pairs(db, limit=200)
-        print(f"✓ Matched {len(pairs)} multimodal pairs (Clinical + 12-lead ECG)")
+        print(f"[OK] Matched {len(pairs)} multimodal pairs (Clinical + 12-lead ECG)")
 
     except Exception as exc:
         print(f"Note: Local database preview completed with sample validation: {exc}")
