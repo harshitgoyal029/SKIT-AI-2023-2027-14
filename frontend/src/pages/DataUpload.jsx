@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getApiUrl } from "../services/api";
 
@@ -39,7 +39,7 @@ const DataUpload = () => {
     const token = localStorage.getItem("cvd_xai_access_token") || localStorage.getItem("cvd_token");
 
     // Fetch history from MongoDB
-    const fetchHistory = async () => {
+    const fetchHistory = useCallback(async () => {
         if (!token) return;
         setHistoryLoading(true);
         try {
@@ -65,11 +65,11 @@ const DataUpload = () => {
         } finally {
             setHistoryLoading(false);
         }
-    };
+    }, [token]);
 
     useEffect(() => {
         fetchHistory();
-    }, [token]);
+    }, [fetchHistory]);
 
     const handleClinicalChange = (e) => {
         const { name, value, type, checked } = e.target;

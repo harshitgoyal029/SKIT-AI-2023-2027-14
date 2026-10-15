@@ -2716,14 +2716,17 @@ const Dashboard = () => {
 
 
             {/* SHAP CHART UI */}
-            {testData?.explainability?.topFeatures?.length > 0 && (
-                <ShapChart
-                    features={testData.explainability.topFeatures}
-                    method={testData.explainability.method || "SHAP"}
-                />
-            )}
+            {activeSection === "explainability" &&
+                testData?.explainability?.topFeatures?.length > 0 && (
+                    <ShapChart
+                        features={testData.explainability.topFeatures}
+                        method={testData.explainability.method || "SHAP"}
+                    />
+                )}
 
-            {testData?.ecg && <EcgAnalysis ecg={testData.ecg} />}
+            {activeSection === "explainability" && testData?.ecg && (
+                <EcgAnalysis ecg={testData.ecg} />
+            )}
 
             {/* -------------------------------------------------
 
