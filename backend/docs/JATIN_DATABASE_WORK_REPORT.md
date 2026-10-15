@@ -30,7 +30,10 @@ According to **Form 2 (Roles & Responsibilities of Team Members)**, Jatin Khande
    - *Deliverable:* FastAPI `get_db` dependency injection, automated collection index initialization (`init_indexes()`), database health ping (`ping_db`), collection stats, and standalone diagnostic CLI (`check_db_health.py`).
 5. **Sprint 2 (01/10/2026 – 13/10/2026): Data Validation Rules**
    - *Form 2 Objective:* "Will add rules to check that incoming data is correct before saving."
-   - *Deliverable:* Application-layer validation via Pydantic (`models.py`) with strict medical range checks (blood pressure, resting heart rate, cholesterol, chest pain categories), and comprehensive unit testing (`test_database.py`, `test_models.py` — 32 test cases passing).
+   - *Deliverable:* Application-layer validation via Pydantic (`models.py`) with strict medical range checks (blood pressure, resting heart rate, cholesterol, chest pain categories), and comprehensive unit testing.
+6. **Sprint 3 (14/10/2026 – 26/10/2026): Help Organize Training**
+   - *Form 2 Objective:* "Will work with Deepak to organize data properly for model training."
+   - *Deliverable:* Built model training data extraction pipeline (`prepare_training_data.py`), multimodal cohort query helpers in `database.py`, schema & feature alignment verification tool (`verify_model_data_alignment.py`), and test suite (`test_training_data.py` — bringing total suite to 44 passing unit tests).
 
 ---
 
