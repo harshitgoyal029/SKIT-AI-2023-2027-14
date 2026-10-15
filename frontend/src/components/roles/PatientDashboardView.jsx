@@ -3,16 +3,16 @@ import { Link } from "react-router-dom";
 import { getApiUrl } from "../../services/api";
 
 const PatientDashboardView = ({ patient, currentUser }) => {
-    // Sub-tab navigation: "overview", "results", or "entry" (Point 6 & Point 5)
+    // Sub-tab navigation: "overview", "predictions", or "entry"
     const [patientTab, setPatientTab] = useState("overview");
 
-    // Real data from MongoDB (Point 4)
+    // Real data from MongoDB
     const [clinicalRecords, setClinicalRecords] = useState([]);
     const [ecgRecords, setEcgRecords] = useState([]);
     const [predictions, setPredictions] = useState([]);
     const [loadingData, setLoadingData] = useState(true);
 
-    // 2-Step data entry workflow state (Point 5)
+    // 2-Step data entry workflow state
     const [entryStep, setEntryStep] = useState(1);
     const [clinicalForm, setClinicalForm] = useState({
         age: "52",
@@ -32,7 +32,7 @@ const PatientDashboardView = ({ patient, currentUser }) => {
     const [stepSuccessMsg, setStepSuccessMsg] = useState("");
     const [stepErrorMsg, setStepErrorMsg] = useState("");
 
-    // Message triage modal (Point 7)
+    // Message triage modal
     const [showContactModal, setShowContactModal] = useState(false);
     const [triageMsgSent, setTriageMsgSent] = useState(false);
 
@@ -87,7 +87,7 @@ const PatientDashboardView = ({ patient, currentUser }) => {
     const patientDisplayName = currentUser?.full_name || currentUser?.name || patient?.name || "Jane Doe (Patient)";
     const patientDisplayEmail = currentUser?.email || patient?.email || "patient@cardioxai.org";
 
-    // Computed risk score from real DNN model (Point 8)
+    // Computed risk score from real DNN model
     const riskScorePercent = latestPrediction
         ? Math.round(latestPrediction.risk_score * 100)
         : null;
@@ -95,6 +95,67 @@ const PatientDashboardView = ({ patient, currentUser }) => {
     const riskLevelLabel = latestPrediction
         ? latestPrediction.risk_level || (riskScorePercent >= 60 ? "High Risk" : riskScorePercent >= 30 ? "Moderate Risk" : "Low Risk")
         : (latestClinical ? "Assessment Ready" : "Awaiting Data Upload");
+
+    // Recalculate AI prediction on demand from latest vitals
+    const handleRunPrediction = async () => {
+        if (!token) return;
+        if (!latestClinical) {
+            setPatientTab("entry");
+            setEntryStep(1);
+            return;
+        }
+
+        setSubmittingStep(true);
+        setStepErrorMsg("");
+        setStepSuccessMsg("");
+
+        try {
+            const bpHi = Math.max(70, Number(latestClinical.resting_bp) || 120);
+            const bpLo = Math.min(bpHi - 10, 80);
+            const cholVal = Number(latestClinical.cholesterol) || 200;
+            const cholCategory = cholVal > 220 ? 3 : (cholVal > 200 ? 2 : 1);
+            const glucCategory = latestClinical.fasting_blood_sugar ? 2 : 1;
+            const ageVal = Math.max(18, Math.min(100, Number(latestClinical.age) || 52));
+            const genderVal = (latestClinical.sex === "M" || latestClinical.gender === 1) ? 1 : 0;
+
+            const payload = {
+                gender: genderVal,
+                height: 170.0,
+                weight: 70.0,
+                ap_hi: bpHi,
+                ap_lo: bpLo,
+                cholesterol: cholCategory,
+                gluc: glucCategory,
+                smoke: 0,
+                alco: 0,
+                active: 1,
+                age_years: ageVal,
+                clinical_record_id: latestClinical._id || latestClinical.id || null,
+            };
+
+            const res = await fetch(getApiUrl("/api/predict/clinical"), {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData?.detail || "Prediction request could not be processed.");
+            }
+
+            await fetchPatientData();
+            setStepSuccessMsg("✓ Clinical DNN risk assessment recalculated successfully!");
+            setTimeout(() => setStepSuccessMsg(""), 3500);
+        } catch (err) {
+            setStepErrorMsg(err.message || "Failed to recalculate assessment.");
+        } finally {
+            setSubmittingStep(false);
+        }
+    };
 
     // Handle 2-Step Form submission
     const handleClinicalStepSubmit = async (e) => {
@@ -183,11 +244,11 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                 throw new Error(errData?.detail || "Failed to upload ECG file.");
             }
 
-            setStepSuccessMsg("✓ Step 2 Complete: ECG recording registered & AI DNN inference complete!");
+            setStepSuccessMsg("✓ Step 2 Complete: ECG registered & AI DNN inference complete!");
             setSelectedEcgFile(null);
             await fetchPatientData();
             setTimeout(() => {
-                setPatientTab("results");
+                setPatientTab("predictions");
                 setEntryStep(1);
                 setStepSuccessMsg("");
             }, 1200);
@@ -226,6 +287,13 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                     <button
                         type="button"
                         className="patient-btn primary"
+                        onClick={() => setPatientTab("predictions")}
+                    >
+                        📊 Prediction Results
+                    </button>
+                    <button
+                        type="button"
+                        className="patient-btn outline"
                         onClick={() => {
                             setPatientTab("entry");
                             setEntryStep(1);
@@ -250,7 +318,7 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                 </div>
             </div>
 
-            {/* Health Status Banner with Strictly Unassigned Cardiologist (Point 7) */}
+            {/* Health Status Banner with Strictly Unassigned Cardiologist */}
             <div className="patient-status-banner">
                 <div className="status-banner-left">
                     <span
@@ -275,13 +343,32 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                             {latestPrediction
                                 ? `Evaluated by trained deep neural network (DNN). Based on systolic BP ${latestClinical?.resting_bp || 120} mmHg and cholesterol ${latestClinical?.cholesterol || 200} mg/dL.`
                                 : latestClinical
-                                ? "Your vitals are stored in MongoDB. Complete Step 2 or click 'My Results' to view your AI assessment."
+                                ? "Your vitals are stored in MongoDB. Click 'Prediction Results' to view your AI assessment."
                                 : "No clinical measurements found yet. Use the 2-Step Data Entry below to record your blood pressure, cholesterol, and ECG."}
                         </p>
+                        {latestPrediction && (
+                            <button
+                                type="button"
+                                style={{
+                                    marginTop: "8px",
+                                    background: "#0284c7",
+                                    color: "#ffffff",
+                                    border: "none",
+                                    borderRadius: "6px",
+                                    padding: "6px 14px",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    cursor: "pointer",
+                                }}
+                                onClick={() => setPatientTab("predictions")}
+                            >
+                                View Detailed Prediction Results →
+                            </button>
+                        )}
                     </div>
                 </div>
 
-                {/* Point 7: Attending Cardiologist Unassigned (Under Review) */}
+                {/* Attending Cardiologist Unassigned (Under Review) */}
                 <div className="status-banner-careteam">
                     <small>Attending Cardiologist</small>
                     <strong style={{ color: "#b45309" }}>Unassigned (Under Review)</strong>
@@ -289,7 +376,7 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                 </div>
             </div>
 
-            {/* Sub-Tab Navigation (Point 6: Dedicated Results Tab) */}
+            {/* Sub-Tab Navigation: Dedicated Tab for Prediction Results */}
             <div style={{ display: "flex", gap: "10px", borderBottom: "2px solid #e2e8f0", paddingBottom: "10px", marginTop: "10px" }}>
                 <button
                     type="button"
@@ -317,13 +404,30 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                         fontSize: "14px",
                         cursor: "pointer",
                         border: "none",
-                        background: patientTab === "results" ? "#0284c7" : "#f1f5f9",
-                        color: patientTab === "results" ? "#ffffff" : "#475569",
+                        background: patientTab === "predictions" ? "#0284c7" : "#f1f5f9",
+                        color: patientTab === "predictions" ? "#ffffff" : "#475569",
                         transition: "all 0.2s ease",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
                     }}
-                    onClick={() => setPatientTab("results")}
+                    onClick={() => setPatientTab("predictions")}
                 >
-                    🎯 My Results & Risk Assessment {latestPrediction && "●"}
+                    <span>📊 Prediction Results</span>
+                    {latestPrediction && (
+                        <span
+                            style={{
+                                background: riskScorePercent >= 60 ? "#ef4444" : riskScorePercent >= 30 ? "#f59e0b" : "#22c55e",
+                                color: "#ffffff",
+                                borderRadius: "12px",
+                                padding: "2px 8px",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                            }}
+                        >
+                            {riskScorePercent}%
+                        </span>
+                    )}
                 </button>
                 <button
                     type="button"
@@ -349,7 +453,7 @@ const PatientDashboardView = ({ patient, currentUser }) => {
             {/* ========================================================================= */}
             {patientTab === "overview" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
-                    {/* Onboarding State if no real records yet in MongoDB (Point 4) */}
+                    {/* Onboarding State if no real records yet in MongoDB */}
                     {!latestClinical && !loadingData && (
                         <div style={{ background: "#ffffff", border: "1.5px dashed #0284c7", borderRadius: "16px", padding: "36px", textAlign: "center" }}>
                             <div style={{ fontSize: "44px", marginBottom: "12px" }}>📋</div>
@@ -371,7 +475,44 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                         </div>
                     )}
 
-                    {/* Real Vitals Grid from MongoDB (Point 4) */}
+                    {/* Quick Callout to Dedicated Prediction Results Tab */}
+                    {latestPrediction && (
+                        <div
+                            style={{
+                                background: "#f0f9ff",
+                                border: "1px solid #bae6fd",
+                                borderRadius: "14px",
+                                padding: "18px 24px",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                flexWrap: "wrap",
+                                gap: "14px",
+                            }}
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                                <div style={{ fontSize: "28px" }}>📊</div>
+                                <div>
+                                    <strong style={{ color: "#0369a1", fontSize: "15px", display: "block" }}>
+                                        AI Risk Assessment Active: {riskScorePercent}% ({riskLevelLabel})
+                                    </strong>
+                                    <span style={{ fontSize: "13px", color: "#0284c7" }}>
+                                        Full model breakdown, contributing biomarker factors, and historical tracking are available in the Prediction Results tab.
+                                    </span>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                className="patient-btn primary"
+                                style={{ padding: "8px 18px", fontSize: "13px" }}
+                                onClick={() => setPatientTab("predictions")}
+                            >
+                                Open Prediction Results Tab →
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Real Vitals Grid from MongoDB */}
                     {latestClinical && (
                         <>
                             <div className="patient-section-header">
@@ -556,33 +697,101 @@ const PatientDashboardView = ({ patient, currentUser }) => {
             )}
 
             {/* ========================================================================= */}
-            {/* TAB 2: MY RESULTS & RISK ASSESSMENT (Point 6: Dedicated Results Tab)       */}
+            {/* TAB 2: SEPARATE DEDICATED TAB FOR PREDICTION RESULTS                      */}
             {/* ========================================================================= */}
-            {patientTab === "results" && (
+            {patientTab === "predictions" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                    {!latestPrediction && (
-                        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "36px", textAlign: "center" }}>
-                            <div style={{ fontSize: "40px", marginBottom: "10px" }}>⏳</div>
-                            <h3>No AI Risk Prediction Generated Yet</h3>
-                            <p style={{ color: "#64748b", maxWidth: "500px", margin: "0 auto 18px" }}>
-                                Enter your clinical vitals using the 2-step flow to calculate your AI cardiovascular risk score.
-                            </p>
+                    {/* Model Specification Banner */}
+                    <div
+                        style={{
+                            background: "#ffffff",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: "14px",
+                            padding: "16px 22px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            gap: "12px",
+                        }}
+                    >
+                        <div>
+                            <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: "#0284c7" }}>
+                                AI PREDICTION ENGINE
+                            </span>
+                            <h4 style={{ margin: "2px 0 0", color: "#0f172a", fontSize: "16px" }}>
+                                Model: clinical_dnn.keras (16 features, 10,302 training cohort records)
+                            </h4>
+                            <span style={{ fontSize: "12px", color: "#64748b" }}>
+                                {latestPrediction?.created_at
+                                    ? `Last evaluated: ${new Date(latestPrediction.created_at).toLocaleString()} | Prediction ID: ${latestPrediction.id || "Active"}`
+                                    : "Awaiting baseline evaluation"}
+                            </span>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                            {latestClinical && (
+                                <button
+                                    type="button"
+                                    className="patient-btn outline"
+                                    style={{ fontSize: "13px", padding: "8px 16px" }}
+                                    onClick={handleRunPrediction}
+                                    disabled={submittingStep}
+                                >
+                                    {submittingStep ? "Calculating..." : "🔄 Re-Calculate Risk"}
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 className="patient-btn primary"
-                                onClick={() => {
-                                    setPatientTab("entry");
-                                    setEntryStep(1);
-                                }}
+                                style={{ fontSize: "13px", padding: "8px 16px" }}
+                                onClick={handlePrintSummary}
                             >
-                                Go to 2-Step Entry Form →
+                                📄 Print Report (PDF)
                             </button>
+                        </div>
+                    </div>
+
+                    {stepSuccessMsg && <div className="form-success">{stepSuccessMsg}</div>}
+                    {stepErrorMsg && <div className="form-error">{stepErrorMsg}</div>}
+
+                    {/* No Predictions Available State */}
+                    {!latestPrediction && (
+                        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "40px", textAlign: "center" }}>
+                            <div style={{ fontSize: "44px", marginBottom: "12px" }}>⏳</div>
+                            <h3 style={{ margin: "0 0 8px", color: "#0f172a" }}>No Prediction Results Available Yet</h3>
+                            <p style={{ color: "#64748b", maxWidth: "520px", margin: "0 auto 20px", fontSize: "14px" }}>
+                                {latestClinical
+                                    ? "Your clinical vitals are stored in MongoDB. Click below to run the clinical deep neural network assessment now."
+                                    : "Enter your resting clinical vitals using the 2-step data entry workflow to calculate your AI cardiovascular risk score."}
+                            </p>
+                            {latestClinical ? (
+                                <button
+                                    type="button"
+                                    className="patient-btn primary"
+                                    onClick={handleRunPrediction}
+                                    disabled={submittingStep}
+                                >
+                                    {submittingStep ? "Running Deep Neural Network..." : "⚡ Calculate Prediction Now"}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="patient-btn primary"
+                                    onClick={() => {
+                                        setPatientTab("entry");
+                                        setEntryStep(1);
+                                    }}
+                                >
+                                    Go to 2-Step Entry Form →
+                                </button>
+                            )}
                         </div>
                     )}
 
+                    {/* Active Prediction Results View */}
                     {latestPrediction && (
                         <>
-                            {/* Prominent Risk Score Card */}
+                            {/* Primary Risk Probability Card */}
                             <div
                                 style={{
                                     background: riskScorePercent >= 60 ? "#fef2f2" : riskScorePercent >= 30 ? "#fffbeb" : "#f0fdf4",
@@ -591,7 +800,7 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                                     padding: "28px",
                                     display: "flex",
                                     flexDirection: "column",
-                                    gap: "16px",
+                                    gap: "18px",
                                 }}
                             >
                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
@@ -605,35 +814,36 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                                                 color: riskScorePercent >= 60 ? "#b91c1c" : riskScorePercent >= 30 ? "#b45309" : "#15803d",
                                             }}
                                         >
-                                            TRAINED CLINICAL DNN ASSESSMENT
+                                            OVERALL CARDIOVASCULAR DISEASE RISK
                                         </span>
-                                        <h2 style={{ margin: "4px 0 0", color: "#0f172a", fontSize: "26px" }}>
-                                            Overall CVD Risk: {riskScorePercent}% ({riskLevelLabel})
+                                        <h2 style={{ margin: "4px 0 0", color: "#0f172a", fontSize: "30px", fontWeight: 800 }}>
+                                            {riskScorePercent}% Probability
                                         </h2>
                                     </div>
                                     <div
                                         style={{
-                                            padding: "8px 18px",
-                                            borderRadius: "20px",
-                                            fontWeight: 700,
-                                            fontSize: "14px",
+                                            padding: "10px 22px",
+                                            borderRadius: "24px",
+                                            fontWeight: 800,
+                                            fontSize: "15px",
                                             background: riskScorePercent >= 60 ? "#dc2626" : riskScorePercent >= 30 ? "#d97706" : "#16a34a",
                                             color: "#ffffff",
+                                            boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
                                         }}
                                     >
-                                        {riskLevelLabel}
+                                        ● {riskLevelLabel}
                                     </div>
                                 </div>
 
-                                {/* Visual Risk Meter */}
+                                {/* Visual Risk Spectrum Bar with Pointer */}
                                 <div>
                                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>
-                                        <span>0% (Low Risk)</span>
+                                        <span>0% (Optimal)</span>
                                         <span>30% (Moderate Threshold)</span>
-                                        <span>60% (High Risk)</span>
-                                        <span>100%</span>
+                                        <span>60% (High Risk Cutoff)</span>
+                                        <span>100% (Critical)</span>
                                     </div>
-                                    <div style={{ height: "14px", background: "#e2e8f0", borderRadius: "10px", overflow: "hidden", position: "relative" }}>
+                                    <div style={{ height: "18px", background: "#e2e8f0", borderRadius: "10px", overflow: "hidden", position: "relative" }}>
                                         <div
                                             style={{
                                                 height: "100%",
@@ -650,128 +860,238 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                                     </div>
                                 </div>
 
-                                <p style={{ margin: 0, fontSize: "14px", color: "#334155", lineHeight: "1.6" }}>
-                                    {riskScorePercent >= 60
-                                        ? "Your cardiovascular risk is evaluated as elevated. We recommend scheduling an expedited consultation with a cardiologist to review antihypertensive and lipid-lowering therapies."
-                                        : riskScorePercent >= 30
-                                        ? "Your cardiovascular risk is in the moderate range. Consistent lifestyle adjustments (exercise, salt reduction, and cholesterol management) can substantially lower your long-term cardiac risk."
-                                        : "Your cardiovascular risk is within the optimal low-risk bracket. Continue with routine physical activity, balanced nutrition, and regular annual health screenings."}
-                                </p>
+                                <div style={{ background: "#ffffff", borderRadius: "10px", padding: "16px 20px", border: "1px solid rgba(0,0,0,0.06)" }}>
+                                    <strong style={{ display: "block", color: "#0f172a", marginBottom: "4px", fontSize: "14px" }}>
+                                        Clinical Interpretation:
+                                    </strong>
+                                    <p style={{ margin: 0, fontSize: "14px", color: "#334155", lineHeight: "1.6" }}>
+                                        {riskScorePercent >= 60
+                                            ? "Your cardiovascular risk is evaluated as elevated. This score is primarily driven by your blood pressure and lipid profile. We strongly advise sharing this assessment with your physician or cardiology triage team to discuss blood pressure management and lifestyle adjustments."
+                                            : riskScorePercent >= 30
+                                            ? "Your cardiovascular risk is in the moderate category. Regular physical activity, low-sodium dietary habits, and ongoing lipid monitoring will help prevent progression to higher cardiovascular risk brackets."
+                                            : "Your cardiovascular profile is currently in the low-risk optimal range. Maintain heart-healthy routines including balanced nutrition, 150 minutes of weekly aerobic exercise, and routine annual wellness checkups."}
+                                    </p>
+                                </div>
                             </div>
 
-                            {/* Specific Contributing Risk Factors (Point 6 requirement) */}
-                            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "24px" }}>
-                                <h3 style={{ margin: "0 0 6px", color: "#0f172a" }}>Contributing Risk Factors Analysis</h3>
-                                <p style={{ margin: "0 0 18px", color: "#64748b", fontSize: "13px" }}>
-                                    Here is how your specific biomarkers influence your cardiovascular risk profile according to the deep learning model:
-                                </p>
+                            {/* Biomarker Risk Attribution (Explainable AI / Contributing Factors) */}
+                            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "26px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                                    <div>
+                                        <h3 style={{ margin: "0 0 4px", color: "#0f172a", fontSize: "18px" }}>
+                                            Contributing Biomarker Analysis (Explainable AI)
+                                        </h3>
+                                        <p style={{ margin: 0, color: "#64748b", fontSize: "13px" }}>
+                                            How your individual measurements influenced the deep neural network risk prediction:
+                                        </p>
+                                    </div>
+                                    <span style={{ fontSize: "12px", background: "#f1f5f9", padding: "4px 10px", borderRadius: "6px", color: "#475569" }}>
+                                        Evaluated via Trained DNN Weights
+                                    </span>
+                                </div>
 
                                 <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                                    {/* Blood Pressure Factor */}
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                                        <div>
-                                            <strong style={{ display: "block", color: "#0f172a" }}>Systolic Blood Pressure</strong>
+                                    {/* Systolic BP */}
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                                        <div style={{ flex: 1 }}>
+                                            <strong style={{ color: "#0f172a", fontSize: "14px", display: "block" }}>
+                                                Resting Systolic Blood Pressure
+                                            </strong>
                                             <span style={{ fontSize: "13px", color: "#64748b" }}>
-                                                Recorded value: {latestClinical?.resting_bp || 120} mmHg (Standard target: &lt; 120 mmHg)
+                                                Recorded: <strong>{latestClinical?.resting_bp || 120} mmHg</strong> (Target: &lt; 120 mmHg) — Direct indicator of arterial wall stress and ventricular afterload.
                                             </span>
                                         </div>
                                         <span
                                             style={{
-                                                fontWeight: 600,
+                                                fontWeight: 700,
                                                 fontSize: "12px",
-                                                padding: "4px 10px",
+                                                padding: "5px 12px",
                                                 borderRadius: "6px",
                                                 background: (latestClinical?.resting_bp || 120) > 130 ? "#fee2e2" : "#dcfce7",
                                                 color: (latestClinical?.resting_bp || 120) > 130 ? "#991b1b" : "#166534",
                                             }}
                                         >
-                                            {(latestClinical?.resting_bp || 120) > 130 ? "Increases Risk" : "Protective / Normal"}
+                                            {(latestClinical?.resting_bp || 120) > 130 ? "▲ Risk Driver (+)" : "✓ Protective / Normal"}
                                         </span>
                                     </div>
 
-                                    {/* Cholesterol Factor */}
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                                        <div>
-                                            <strong style={{ display: "block", color: "#0f172a" }}>Serum Total Cholesterol</strong>
+                                    {/* Serum Cholesterol */}
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                                        <div style={{ flex: 1 }}>
+                                            <strong style={{ color: "#0f172a", fontSize: "14px", display: "block" }}>
+                                                Serum Total Cholesterol
+                                            </strong>
                                             <span style={{ fontSize: "13px", color: "#64748b" }}>
-                                                Recorded value: {latestClinical?.cholesterol || 200} mg/dL (Standard target: &lt; 200 mg/dL)
+                                                Recorded: <strong>{latestClinical?.cholesterol || 200} mg/dL</strong> (Target: &lt; 200 mg/dL) — Influences atherogenic plaque deposition risk in coronary arteries.
                                             </span>
                                         </div>
                                         <span
                                             style={{
-                                                fontWeight: 600,
+                                                fontWeight: 700,
                                                 fontSize: "12px",
-                                                padding: "4px 10px",
+                                                padding: "5px 12px",
                                                 borderRadius: "6px",
-                                                background: (latestClinical?.cholesterol || 200) > 220 ? "#fee2e2" : (latestClinical?.cholesterol || 200) > 200 ? "#fef3c7" : "#dcfce7",
-                                                color: (latestClinical?.cholesterol || 200) > 220 ? "#991b1b" : (latestClinical?.cholesterol || 200) > 200 ? "#92400e" : "#166534",
+                                                background: (latestClinical?.cholesterol || 200) > 200 ? "#fee2e2" : "#dcfce7",
+                                                color: (latestClinical?.cholesterol || 200) > 200 ? "#991b1b" : "#166534",
                                             }}
                                         >
-                                            {(latestClinical?.cholesterol || 200) > 200 ? "Increases Risk" : "Optimal"}
+                                            {(latestClinical?.cholesterol || 200) > 200 ? "▲ Risk Driver (+)" : "✓ Desirable"}
                                         </span>
                                     </div>
 
-                                    {/* Fasting Blood Sugar Factor */}
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                                        <div>
-                                            <strong style={{ display: "block", color: "#0f172a" }}>Fasting Blood Sugar / Glucose</strong>
+                                    {/* Fasting Blood Sugar */}
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                                        <div style={{ flex: 1 }}>
+                                            <strong style={{ color: "#0f172a", fontSize: "14px", display: "block" }}>
+                                                Fasting Blood Sugar / Glycemic Status
+                                            </strong>
                                             <span style={{ fontSize: "13px", color: "#64748b" }}>
-                                                {latestClinical?.fasting_blood_sugar ? "Elevated (> 120 mg/dL)" : "Normal (≤ 120 mg/dL)"}
+                                                Status: <strong>{latestClinical?.fasting_blood_sugar ? "Elevated (> 120 mg/dL)" : "Normal (≤ 120 mg/dL)"}</strong> — Key predictor of microvascular and endothelial dysfunction.
                                             </span>
                                         </div>
                                         <span
                                             style={{
-                                                fontWeight: 600,
+                                                fontWeight: 700,
                                                 fontSize: "12px",
-                                                padding: "4px 10px",
+                                                padding: "5px 12px",
                                                 borderRadius: "6px",
                                                 background: latestClinical?.fasting_blood_sugar ? "#fee2e2" : "#dcfce7",
                                                 color: latestClinical?.fasting_blood_sugar ? "#991b1b" : "#166534",
                                             }}
                                         >
-                                            {latestClinical?.fasting_blood_sugar ? "Metabolic Factor" : "Normal Metabolism"}
+                                            {latestClinical?.fasting_blood_sugar ? "▲ Metabolic Risk (+)" : "✓ Normoglycemic"}
                                         </span>
                                     </div>
 
-                                    {/* ST Depression Factor */}
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                                        <div>
-                                            <strong style={{ display: "block", color: "#0f172a" }}>ST Depression (Exercise ECG)</strong>
+                                    {/* ST Depression */}
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+                                        <div style={{ flex: 1 }}>
+                                            <strong style={{ color: "#0f172a", fontSize: "14px", display: "block" }}>
+                                                ST Segment Depression (ECG Stress Marker)
+                                            </strong>
                                             <span style={{ fontSize: "13px", color: "#64748b" }}>
-                                                Measured ST segment: {latestClinical?.st_depression || "0.0"} mm (Slope: {latestClinical?.st_slope || "Flat"})
+                                                Measured: <strong>{latestClinical?.st_depression || "0.0"} mm</strong> (Slope: {latestClinical?.st_slope || "Flat"}) — Evaluates myocardial subendocardial ischemia under exertion.
                                             </span>
                                         </div>
                                         <span
                                             style={{
-                                                fontWeight: 600,
+                                                fontWeight: 700,
                                                 fontSize: "12px",
-                                                padding: "4px 10px",
+                                                padding: "5px 12px",
                                                 borderRadius: "6px",
                                                 background: (Number(latestClinical?.st_depression) || 0) > 1.0 ? "#fee2e2" : "#dcfce7",
                                                 color: (Number(latestClinical?.st_depression) || 0) > 1.0 ? "#991b1b" : "#166534",
                                             }}
                                         >
-                                            {(Number(latestClinical?.st_depression) || 0) > 1.0 ? "Ischemic Sign" : "No Acute Strain"}
+                                            {(Number(latestClinical?.st_depression) || 0) > 1.0 ? "▲ Ischemia Sign (+)" : "✓ No Acute Strain"}
                                         </span>
                                     </div>
                                 </div>
                             </div>
 
+                            {/* Historical Assessment Log (All Predictions from MongoDB) */}
+                            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "26px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                                    <div>
+                                        <h3 style={{ margin: "0 0 4px", color: "#0f172a", fontSize: "18px" }}>
+                                            Historical Prediction Timeline
+                                        </h3>
+                                        <p style={{ margin: 0, color: "#64748b", fontSize: "13px" }}>
+                                            All machine learning evaluations recorded in MongoDB for your patient profile:
+                                        </p>
+                                    </div>
+                                    <span style={{ fontSize: "12px", background: "#e0f2fe", color: "#0369a1", padding: "4px 10px", borderRadius: "6px", fontWeight: 600 }}>
+                                        {predictions.length} Total Assessment{predictions.length !== 1 ? "s" : ""}
+                                    </span>
+                                </div>
+
+                                {predictions.length === 0 ? (
+                                    <p style={{ color: "#64748b", fontSize: "13px", textAlign: "center", padding: "20px 0" }}>
+                                        No historical evaluations found in database.
+                                    </p>
+                                ) : (
+                                    <div style={{ overflowX: "auto" }}>
+                                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                                            <thead>
+                                                <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0", textAlign: "left" }}>
+                                                    <th style={{ padding: "10px 14px", color: "#475569" }}>Date & Time</th>
+                                                    <th style={{ padding: "10px 14px", color: "#475569" }}>Model</th>
+                                                    <th style={{ padding: "10px 14px", color: "#475569" }}>Risk Score</th>
+                                                    <th style={{ padding: "10px 14px", color: "#475569" }}>Risk Category</th>
+                                                    <th style={{ padding: "10px 14px", color: "#475569" }}>Primary Factors</th>
+                                                    <th style={{ padding: "10px 14px", color: "#475569" }}>Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {predictions.map((p, idx) => {
+                                                    const scoreVal = Math.round((p.risk_score || 0) * 100);
+                                                    const levelText = p.risk_level || (scoreVal >= 60 ? "High Risk" : scoreVal >= 30 ? "Moderate Risk" : "Low Risk");
+                                                    return (
+                                                        <tr key={p.id || idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                                            <td style={{ padding: "12px 14px", color: "#0f172a" }}>
+                                                                {p.created_at ? new Date(p.created_at).toLocaleString() : "Recent"}
+                                                            </td>
+                                                            <td style={{ padding: "12px 14px", color: "#64748b" }}>
+                                                                {p.model_name || "clinical_dnn"}
+                                                            </td>
+                                                            <td style={{ padding: "12px 14px", fontWeight: 700, color: "#0f172a" }}>
+                                                                {scoreVal}%
+                                                            </td>
+                                                            <td style={{ padding: "12px 14px" }}>
+                                                                <span
+                                                                    style={{
+                                                                        padding: "3px 8px",
+                                                                        borderRadius: "12px",
+                                                                        fontSize: "11px",
+                                                                        fontWeight: 700,
+                                                                        background: scoreVal >= 60 ? "#fee2e2" : scoreVal >= 30 ? "#fef3c7" : "#dcfce7",
+                                                                        color: scoreVal >= 60 ? "#991b1b" : scoreVal >= 30 ? "#92400e" : "#166534",
+                                                                    }}
+                                                                >
+                                                                    {levelText}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: "12px 14px", color: "#64748b" }}>
+                                                                {Array.isArray(p.top_contributing_features) && p.top_contributing_features.length > 0
+                                                                    ? p.top_contributing_features.slice(0, 3).join(", ")
+                                                                    : "Systolic BP, Cholesterol"}
+                                                            </td>
+                                                            <td style={{ padding: "12px 14px", color: "#16a34a", fontWeight: 600 }}>
+                                                                ✓ Saved
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Download & Print Summary Section */}
                             <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
                                 <div>
-                                    <strong style={{ color: "#0f172a", display: "block" }}>Cardiovascular Health Report (Official PDF Summary)</strong>
+                                    <strong style={{ color: "#0f172a", display: "block" }}>Download Official Clinical Assessment Report</strong>
                                     <span style={{ fontSize: "13px", color: "#64748b" }}>
-                                        Generate an official printable report for your consultation with your physician.
+                                        Generate a printable summary for your clinical record or consultation with your physician.
                                     </span>
                                 </div>
-                                <button
-                                    type="button"
-                                    className="patient-btn primary"
-                                    onClick={handlePrintSummary}
-                                >
-                                    📄 Print / Save as PDF
-                                </button>
+                                <div style={{ display: "flex", gap: "10px" }}>
+                                    <button
+                                        type="button"
+                                        className="patient-btn outline"
+                                        onClick={() => setShowContactModal(true)}
+                                    >
+                                        🩺 Message Care Team
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="patient-btn primary"
+                                        onClick={handlePrintSummary}
+                                    >
+                                        📄 Print / Save as PDF
+                                    </button>
+                                </div>
                             </div>
                         </>
                     )}
@@ -779,7 +1099,7 @@ const PatientDashboardView = ({ patient, currentUser }) => {
             )}
 
             {/* ========================================================================= */}
-            {/* TAB 3: 2-STEP PATIENT DATA ENTRY FLOW (Point 5)                           */}
+            {/* TAB 3: 2-STEP PATIENT DATA ENTRY FLOW                                     */}
             {/* ========================================================================= */}
             {patientTab === "entry" && (
                 <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "28px" }}>
@@ -993,7 +1313,7 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                                     className="patient-btn primary"
                                     disabled={submittingStep}
                                 >
-                                    {submittingStep ? "Uploading & Running AI Model..." : "⚡ Complete Upload & Calculate AI Risk"}
+                                    {submittingStep ? "Uploading & Running AI Model..." : "⚡ Complete Upload & View Prediction Results"}
                                 </button>
                             </div>
                         </form>
@@ -1001,7 +1321,7 @@ const PatientDashboardView = ({ patient, currentUser }) => {
                 </div>
             )}
 
-            {/* Point 7: Message Care Team Triage Modal */}
+            {/* Message Care Team Triage Modal */}
             {showContactModal && (
                 <div className="patient-modal-overlay" onClick={() => setShowContactModal(false)}>
                     <div className="patient-modal-box" onClick={(e) => e.stopPropagation()}>

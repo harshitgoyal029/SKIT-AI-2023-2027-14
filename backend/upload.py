@@ -149,9 +149,10 @@ def submit_clinical_data(
                 predicted_label=assessment["predicted_label"],
                 top_contributing_features=assessment.get("top_contributing_features", []),
             )
-            db["prediction_results"].insert_one(
-                pred_record.model_dump(by_alias=True, exclude={"id"})
-            )
+            pred_dict = pred_record.model_dump(by_alias=True, exclude={"id"})
+            pred_dict["feature_contributions"] = assessment.get("feature_contributions", [])
+            pred_dict["risk_level"] = assessment.get("risk_level", "Moderate Risk")
+            db["prediction_results"].insert_one(pred_dict)
     except Exception:
         pass
 

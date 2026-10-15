@@ -122,9 +122,10 @@ def predict_clinical(
                 c["feature"] for c in result["feature_contributions"][:5]
             ],
         )
-        insert_result = db["prediction_results"].insert_one(
-            prediction.model_dump(by_alias=True, exclude={"id"})
-        )
+        pred_dict = prediction.model_dump(by_alias=True, exclude={"id"})
+        pred_dict["feature_contributions"] = result.get("feature_contributions", [])
+        pred_dict["risk_level"] = result.get("risk_level", "Moderate Risk")
+        insert_result = db["prediction_results"].insert_one(pred_dict)
         prediction_id = str(insert_result.inserted_id)
     except Exception:
         # DB save is optional — don't fail the prediction
@@ -169,10 +170,11 @@ def prediction_history(
         {
             "id": str(doc["_id"]),
             "risk_score": doc["risk_score"],
-            "risk_level": "High Risk" if doc["risk_score"] >= 0.6 else ("Moderate Risk" if doc["risk_score"] >= 0.3 else "Low Risk"),
+            "risk_level": doc.get("risk_level") or ("High Risk" if doc["risk_score"] >= 0.6 else ("Moderate Risk" if doc["risk_score"] >= 0.3 else "Low Risk")),
             "predicted_label": doc["predicted_label"],
             "model_name": doc.get("model_name"),
             "top_contributing_features": doc.get("top_contributing_features", []),
+            "feature_contributions": doc.get("feature_contributions", []),
             "clinical_record_id": doc.get("clinical_record_id"),
             "created_at": doc.get("created_at"),
         }
