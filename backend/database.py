@@ -172,3 +172,49 @@ def get_patient_prediction_history(patient_id: str, limit: int = 10, db: Databas
         .limit(limit)
     )
     return list(cursor)
+
+
+def get_training_cohort(db: Database | None = None, limit: int = 1000) -> list[dict]:
+    """Retrieve verified clinical patient records structured for model training.
+
+    Sprint 3 (Help Organize Training): Filters records with valid cardiovascular
+    vitals and projects only the necessary fields for feature extraction.
+    """
+    target_db = db if db is not None else database
+    query = {
+        "age": {"$gte": 18, "$lte": 100},
+        "resting_bp": {"$gte": 50, "$lte": 250},
+        "cholesterol": {"$gte": 50, "$lte": 600},
+    }
+    cursor = target_db["clinical_records"].find(query).limit(limit)
+    return list(cursor)
+
+
+def get_multimodal_training_pairs(db: Database | None = None, limit: int = 500) -> list[dict]:
+    """Retrieve matched pairs of clinical records and 12-lead ECG metadata.
+
+    Sprint 3 (Help Organize Training): Enables Deepak's multimodal fusion model
+    to train on synchronized clinical and ECG signal pairs.
+    """
+    target_db = db if db is not None else database
+    clinical_col = target_db["clinical_records"]
+    ecg_col = target_db["ecg_recordings"]
+
+    pairs = []
+    cursor = clinical_col.find().limit(limit)
+    for cr in cursor:
+        patient_id = cr.get("patient_id")
+        if not patient_id:
+            continue
+        ecg = ecg_col.find_one({
+            "patient_id": patient_id,
+            "processing_status": {"$in": ["uploaded", "processed", "sample", "training_ready"]},
+        })
+        if ecg:
+            pairs.append({
+                "patient_id": patient_id,
+                "clinical_record": cr,
+                "ecg_recording": ecg,
+            })
+    return pairs
+
