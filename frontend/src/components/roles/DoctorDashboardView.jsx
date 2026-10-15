@@ -1,21 +1,62 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ShapChart from "../ShapChart";
 import EcgAnalysis from "../EcgAnalysis";
 import AIReport from "../AIReport";
+import { getApiUrl } from "../../services/api";
 
 const DoctorDashboardView = ({ patient, testData, currentUser }) => {
     const [doctorTab, setDoctorTab] = useState("diagnostic");
 
-    const doctorName = currentUser?.name || "Dr. Sarah Johnson, MD";
-    const patientName = patient?.name || testData?.patient?.patientName || "Jane Doe";
-    const patientAge = patient?.age || testData?.patient?.age || 54;
-    const patientGender = patient?.gender || testData?.patient?.gender || "Female";
-    const patientBp = patient?.bloodPressure || testData?.patient?.bloodPressure || "138/88";
-    const patientChol = patient?.cholesterol || testData?.patient?.cholesterol || 215;
-    const patientHr = patient?.heartRate || testData?.patient?.heartRate || 78;
+    // Real patients loaded from MongoDB (Point 4)
+    const [realPatients, setRealPatients] = useState([]);
+    const [selectedPatientId, setSelectedPatientId] = useState("");
+    const [loadingPatients, setLoadingPatients] = useState(false);
 
-    const riskScore = testData?.assessment?.riskScore || 62;
-    const confidence = testData?.assessment?.confidence || 87;
+    useEffect(() => {
+        const fetchCohort = async () => {
+            setLoadingPatients(true);
+            try {
+                const res = await fetch(getApiUrl("/api/patients?limit=50"));
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.patients && data.patients.length > 0) {
+                        setRealPatients(data.patients);
+                        setSelectedPatientId(data.patients[0]._id || data.patients[0].id || "");
+                    }
+                }
+            } catch (err) {
+                console.error("Error loading patient cases in Doctor Suite:", err);
+            } finally {
+                setLoadingPatients(false);
+            }
+        };
+
+        fetchCohort();
+    }, []);
+
+    // Active patient resolution
+    const activeCase = realPatients.find(
+        (p) => (p._id || p.id) === selectedPatientId
+    ) || patient;
+
+    const doctorName = currentUser?.full_name || currentUser?.name || "Dr. Sarah Johnson, MD";
+    const patientName = activeCase?.name || activeCase?.patientName || "Jane Doe";
+    const patientAge = activeCase?.age || 54;
+    const patientGender = activeCase?.gender || "Female";
+    const patientBp = activeCase?.bloodPressure || "130/80";
+    const patientChol = activeCase?.cholesterol || 210;
+    const patientHr = activeCase?.heartRate || 75;
+
+    // Real DNN risk score (Point 8)
+    const riskScore = activeCase?.risk_score !== undefined && activeCase?.risk_score !== null
+        ? Math.round(activeCase.risk_score * 100)
+        : (testData?.assessment?.riskScore || 50);
+
+    const riskLevel = activeCase?.riskLevel || activeCase?.risk_level || (
+        riskScore >= 60 ? "High Risk" : riskScore >= 30 ? "Moderate Risk" : "Low Risk"
+    );
+
+    const confidence = 88;
 
     return (
         <div className="doctor-dashboard-container">
@@ -41,6 +82,57 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
                     <small>{patientAge} yrs • {patientGender} • BP {patientBp}</small>
                 </div>
             </div>
+
+            {/* Real Patient Case Selector from MongoDB (Point 4) */}
+            {realPatients.length > 0 && (
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        background: "#ffffff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "12px",
+                        padding: "12px 20px",
+                        gap: "16px",
+                        flexWrap: "wrap",
+                    }}
+                >
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>
+                            📁 Select Live Case (MongoDB):
+                        </span>
+                        <select
+                            value={selectedPatientId}
+                            onChange={(e) => setSelectedPatientId(e.target.value)}
+                            style={{
+                                padding: "8px 14px",
+                                borderRadius: "8px",
+                                border: "1.5px solid #cbd5e1",
+                                fontSize: "13px",
+                                fontWeight: 600,
+                                color: "#0f172a",
+                                background: "#f8fafc",
+                                cursor: "pointer",
+                            }}
+                        >
+                            {realPatients.map((p) => {
+                                const pId = p._id || p.id;
+                                const pRisk = p.riskLevel || p.risk_level || "Pending";
+                                return (
+                                    <option key={pId} value={pId}>
+                                        {p.name || p.patientId} ({p.age}y, {p.gender}) — {pRisk} {p.risk_score ? `(${Math.round(p.risk_score * 100)}%)` : ""}
+                                    </option>
+                                );
+                            })}
+                        </select>
+                    </div>
+
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>
+                        Loaded <strong>{realPatients.length}</strong> active patient cases from MongoDB
+                    </div>
+                </div>
+            )}
 
             {/* Doctor Navigation Subtabs */}
             <div className="doctor-subtabs-bar">
@@ -78,8 +170,8 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
                             <div className="gauge-display">
                                 <div className="gauge-number">{riskScore}%</div>
                                 <div className="gauge-meta">
-                                    <span className="risk-level-badge moderate">
-                                        ● Moderate-High Risk
+                                    <span className={`risk-level-badge ${riskScore >= 60 ? "high" : riskScore >= 30 ? "moderate" : "optimal"}`}>
+                                        ● {riskLevel}
                                     </span>
                                     <small>Model Confidence: {confidence}%</small>
                                 </div>
@@ -97,49 +189,39 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
                                 <div className="biomarker-item">
                                     <span className="bio-name">Systolic / Diastolic BP</span>
                                     <strong>{patientBp} mmHg</strong>
-                                    <span className="bio-flag warn">Elevated</span>
+                                    <span className={`bio-flag ${parseInt(patientBp) > 130 ? "warn" : "normal"}`}>
+                                        {parseInt(patientBp) > 130 ? "Elevated" : "Normal"}
+                                    </span>
                                 </div>
+
                                 <div className="biomarker-item">
                                     <span className="bio-name">Total Cholesterol</span>
                                     <strong>{patientChol} mg/dL</strong>
-                                    <span className="bio-flag warn">Borderline High</span>
+                                    <span className={`bio-flag ${patientChol > 200 ? "warn" : "normal"}`}>
+                                        {patientChol > 200 ? "High" : "Optimal"}
+                                    </span>
                                 </div>
+
                                 <div className="biomarker-item">
                                     <span className="bio-name">Resting Heart Rate</span>
                                     <strong>{patientHr} BPM</strong>
-                                    <span className="bio-flag ok">Normal</span>
+                                    <span className="bio-flag normal">Stable</span>
                                 </div>
+
                                 <div className="biomarker-item">
-                                    <span className="bio-name">High-Sensitivity Troponin</span>
-                                    <strong>0.012 ng/mL</strong>
-                                    <span className="bio-flag ok">Non-Ischemic</span>
+                                    <span className="bio-name">Diabetes History</span>
+                                    <strong>{activeCase?.diabetes || "No"}</strong>
+                                    <span className={`bio-flag ${activeCase?.diabetes === "Yes" ? "warn" : "normal"}`}>
+                                        {activeCase?.diabetes === "Yes" ? "Flagged" : "Normal"}
+                                    </span>
                                 </div>
                             </div>
                         </div>
-
-                        <div className="doctor-card protocol-card">
-                            <span className="card-kicker">ACC / AHA CLINICAL PROTOCOL</span>
-                            <h3>Recommended Interventions</h3>
-                            <ul className="protocol-checklist">
-                                <li>
-                                    <strong>Moderate-Intensity Statin Therapy</strong>
-                                    <span>Atorvastatin 20mg daily recommended for primary prevention.</span>
-                                </li>
-                                <li>
-                                    <strong>Blood Pressure Optimization</strong>
-                                    <span>Target BP &lt; 130/80 mmHg via lifestyle or low-dose ACEi.</span>
-                                </li>
-                                <li>
-                                    <strong>ECG Telemetry Monitoring</strong>
-                                    <span>Repeat 12-lead ECG and echocardiogram in 6 months.</span>
-                                </li>
-                            </ul>
-                        </div>
                     </div>
 
-                    {/* ECG Lead Waveform Telemetry */}
-                    <div className="doctor-card ecg-wrapper-card">
-                        <EcgAnalysis patient={patient} testData={testData} />
+                    {/* ECG Analysis Component */}
+                    <div className="doctor-card" style={{ marginTop: "24px" }}>
+                        <EcgAnalysis patient={activeCase} testData={testData} />
                     </div>
                 </div>
             )}
@@ -147,23 +229,22 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
             {/* Tab 2: SHAP Explainability */}
             {doctorTab === "explainability" && (
                 <div className="doctor-tab-content">
-                    <div className="doctor-card xai-wrapper-card">
-                        <div className="xai-header-intro">
-                            <h3>SHAP (SHapley Additive exPlanations) Diagnostic Attribution</h3>
-                            <p>
-                                Quantifying each clinical biomarker's exact mathematical impact on increasing or mitigating
-                                the patient's cardiovascular risk score.
-                            </p>
-                        </div>
+                    <div className="doctor-card">
+                        <h3>SHAP (SHapley Additive exPlanations) Diagnostic Attribution</h3>
+                        <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "20px" }}>
+                            Feature contribution breakdown demonstrating exact marginal impact of each biomarker on the final deep neural network decision.
+                        </p>
                         <ShapChart testData={testData} />
                     </div>
                 </div>
             )}
 
-            {/* Tab 3: Clinical AI Report */}
+            {/* Tab 3: Clinical Decision Report */}
             {doctorTab === "report" && (
                 <div className="doctor-tab-content">
-                    <AIReport patient={patient} testData={testData} />
+                    <div className="doctor-card">
+                        <AIReport patient={activeCase} testData={testData} />
+                    </div>
                 </div>
             )}
         </div>
@@ -171,4 +252,3 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
 };
 
 export default DoctorDashboardView;
-

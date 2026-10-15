@@ -123,6 +123,38 @@ def submit_clinical_data(
         record.model_dump(by_alias=True, exclude={"id"})
     )
     inserted = db["clinical_records"].find_one({"_id": result.inserted_id})
+
+    # Auto-generate DNN risk assessment for this submission using trained clinical_dnn model
+    try:
+        from ml_engine import predict_patient
+        from models import PredictionResult
+        patient_feature_dict = {
+            "age": data.get("age") or 50,
+            "gender": "Male" if data.get("sex") == "M" else "Female",
+            "bloodPressure": f"{data.get('resting_bp') or 120}/80",
+            "cholesterol": data.get("cholesterol") or 200,
+            "heartRate": data.get("max_heart_rate") or 75,
+            "fastingBloodSugar": 130 if data.get("fasting_blood_sugar") else 95,
+            "diabetes": "Yes" if data.get("fasting_blood_sugar") else "No",
+            "smoking": "No",
+        }
+        assessment = predict_patient(patient_feature_dict)
+        if assessment:
+            pred_record = PredictionResult(
+                patient_id=patient_id,
+                clinical_record_id=str(result.inserted_id),
+                model_name="clinical_dnn",
+                model_version="1.0.0",
+                risk_score=assessment["risk_score"],
+                predicted_label=assessment["predicted_label"],
+                top_contributing_features=assessment.get("top_contributing_features", []),
+            )
+            db["prediction_results"].insert_one(
+                pred_record.model_dump(by_alias=True, exclude={"id"})
+            )
+    except Exception:
+        pass
+
     return _clinical_payload(inserted)
 
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { getApiUrl } from "../../services/api";
 
 const SAMPLE_COHORT = [
     {
@@ -73,7 +74,7 @@ const ClinicianDashboardView = ({ currentUser }) => {
         const fetchPatients = async () => {
             setLoading(true);
             try {
-                const res = await fetch("http://localhost:8000/api/patients?limit=20");
+                const res = await fetch(getApiUrl("/api/patients?limit=50"));
                 if (res.ok) {
                     const data = await res.json();
                     if (data.patients && data.patients.length > 0) {

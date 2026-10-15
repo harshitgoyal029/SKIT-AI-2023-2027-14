@@ -169,9 +169,11 @@ def prediction_history(
         {
             "id": str(doc["_id"]),
             "risk_score": doc["risk_score"],
+            "risk_level": "High Risk" if doc["risk_score"] >= 0.6 else ("Moderate Risk" if doc["risk_score"] >= 0.3 else "Low Risk"),
             "predicted_label": doc["predicted_label"],
             "model_name": doc.get("model_name"),
             "top_contributing_features": doc.get("top_contributing_features", []),
+            "clinical_record_id": doc.get("clinical_record_id"),
             "created_at": doc.get("created_at"),
         }
         for doc in results
