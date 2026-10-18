@@ -56,7 +56,7 @@ export const printClinicalReport = (elementId = "clinical-report-printable-area"
     <style>
         @page {
             size: A4 portrait;
-            margin: 10mm 12mm;
+            margin: 12mm 15mm 12mm 15mm;
         }
 
         * {
@@ -393,28 +393,110 @@ export const printClinicalReport = (elementId = "clinical-report-printable-area"
             line-height: 1.35;
         }
 
-        /* Signature Section */
+        /* Doctor's Words Review Box */
+        .print-doctor-words-section {
+            margin-bottom: 12px;
+            page-break-inside: avoid;
+        }
+
+        .print-doctor-box {
+            border: 1.5px solid #0284c7;
+            border-radius: 6px;
+            background: #f8fafc !important;
+            padding: 8px 12px 10px;
+        }
+
+        .print-doctor-box-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 4px;
+        }
+
+        .print-doctor-prompt {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: #0369a1;
+        }
+
+        .print-doctor-checkboxes {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 9px;
+            color: #475569;
+        }
+
+        .checkbox-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .checkbox-square {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border: 1.5px solid #64748b;
+            border-radius: 2px;
+            background: #ffffff !important;
+        }
+
+        .print-doctor-ruled-area {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .print-doctor-line {
+            border-bottom: 1px dashed #cbd5e1;
+            min-height: 22px;
+            display: flex;
+            align-items: flex-end;
+            padding-bottom: 2px;
+        }
+
+        .print-line-label {
+            font-size: 9px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-right: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* Formal Medical Attestation & Signature Grid */
         .print-signature-section {
-            margin-top: 14px;
+            margin-top: 12px;
             padding-top: 6px;
-            border-top: 1px solid #cbd5e1;
             page-break-inside: avoid;
         }
 
         .print-signature-grid {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1.3fr 1fr 1.2fr;
+            gap: 14px;
             margin-bottom: 8px;
-            gap: 20px;
+            align-items: end;
         }
 
         .print-signature-box {
-            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .print-signature-space {
+            height: 32px;
         }
 
         .print-sig-line {
             height: 1px;
-            background: #94a3b8;
+            background: #475569;
             margin-bottom: 4px;
         }
 
@@ -423,12 +505,32 @@ export const printClinicalReport = (elementId = "clinical-report-printable-area"
             font-weight: 700;
             color: #0f172a;
             display: block;
+            margin-bottom: 2px;
         }
 
-        .print-signature-box small {
+        .print-sig-detail {
             font-size: 8.5px;
-            color: #64748b;
-            display: block;
+            color: #475569;
+            line-height: 1.35;
+        }
+
+        .print-stamp-area {
+            border: 1.5px dashed #94a3b8;
+            border-radius: 6px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(241, 245, 249, 0.7) !important;
+            margin-bottom: 4px;
+        }
+
+        .stamp-placeholder {
+            font-size: 8px;
+            font-weight: 700;
+            color: #94a3b8;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
         .print-disclaimer {

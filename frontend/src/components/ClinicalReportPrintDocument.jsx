@@ -352,18 +352,70 @@ const ClinicalReportPrintDocument = ({
                 </div>
             </div>
 
-            {/* Physician Triage Review & Sign-Off Section */}
-            <div className="print-section print-signature-section">
-                <div className="print-signature-grid">
-                    <div className="print-signature-box">
-                        <div className="print-sig-line"></div>
-                        <span className="print-sig-role">Clinical Triage Officer / Reviewing Physician</span>
-                        <small>Cardiology Outpatient Triage Team</small>
+            {/* Attending Physician / Cardiologist Clinical Review Block ("Doctor's Words") */}
+            <div className="print-section print-doctor-words-section">
+                <div className="print-section-header">
+                    ATTENDING PHYSICIAN / CARDIOLOGIST CLINICAL EVALUATION &amp; IMPRESSIONS ("DOCTOR'S WORDS")
+                </div>
+                <div className="print-doctor-box">
+                    <div className="print-doctor-box-header">
+                        <span className="print-doctor-prompt">
+                            Physician Clinical Impressions, Diagnostic Findings, Pharmacotherapy &amp; Management Notes:
+                        </span>
+                        <div className="print-doctor-checkboxes">
+                            <span className="checkbox-item"><span className="checkbox-square"></span> Confirm Assessment</span>
+                            <span className="checkbox-item"><span className="checkbox-square"></span> Order 12-Lead ECG / Echo</span>
+                            <span className="checkbox-item"><span className="checkbox-square"></span> Modify Statin / BP Rx</span>
+                            <span className="checkbox-item"><span className="checkbox-square"></span> Follow-up Scheduled</span>
+                        </div>
                     </div>
+                    {/* Ruled lines for doctor's handwritten or recorded clinical notes */}
+                    <div className="print-doctor-ruled-area">
+                        <div className="print-doctor-line">
+                            <span className="print-line-label">Clinical Diagnosis / Impressions:</span>
+                        </div>
+                        <div className="print-doctor-line">
+                            <span className="print-line-label">Therapeutic Plan &amp; Medication Adjustments:</span>
+                        </div>
+                        <div className="print-doctor-line">
+                            <span className="print-line-label">Additional Diagnostic Workup / Lab Orders:</span>
+                        </div>
+                        <div className="print-doctor-line">
+                            <span className="print-line-label">Follow-up Timeline &amp; Patient Instructions:</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Official Physician & Clinical Sign-Off Block */}
+            <div className="print-section print-signature-section">
+                <div className="print-section-header">CLINICAL ATTESTATION &amp; OFFICIAL SIGNATURES</div>
+                <div className="print-signature-grid">
+                    {/* Attending Physician Signature */}
                     <div className="print-signature-box">
+                        <div className="print-signature-space"></div>
                         <div className="print-sig-line"></div>
-                        <span className="print-sig-role">Date of Physician Review</span>
-                        <small>CardioXAI Clinical Review Queue</small>
+                        <span className="print-sig-role">Attending Physician / Cardiologist Signature</span>
+                        <div className="print-sig-detail">Doctor's Name: Dr. ___________________________</div>
+                        <div className="print-sig-detail">Medical License / Reg No.: _____________________</div>
+                    </div>
+
+                    {/* Official Medical Stamp / Clinic Seal */}
+                    <div className="print-signature-box stamp-box">
+                        <div className="print-stamp-area">
+                            <span className="stamp-placeholder">[ OFFICIAL CLINIC / HOSPITAL STAMP ]</span>
+                        </div>
+                        <span className="print-sig-role" style={{ textAlign: "center" }}>Medical Seal &amp; Verification</span>
+                        <div className="print-sig-detail" style={{ textAlign: "center" }}>CardioXAI Clinical Center</div>
+                    </div>
+
+                    {/* Review Date & Department */}
+                    <div className="print-signature-box">
+                        <div className="print-signature-space"></div>
+                        <div className="print-sig-line"></div>
+                        <span className="print-sig-role">Date of Physician Review &amp; Sign-Off</span>
+                        <div className="print-sig-detail">Review Date: _____ / _____ / 2026</div>
+                        <div className="print-sig-detail">Division: Cardiovascular Outpatient Care</div>
                     </div>
                 </div>
 
