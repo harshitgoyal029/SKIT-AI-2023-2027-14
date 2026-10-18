@@ -28,6 +28,7 @@ const App = () => (
                 }
             >
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/prediction-results" element={<Dashboard activeView="predictions" />} />
                 <Route path="/patient-registration" element={<PatientRegistration />} />
                 <Route path="/data-upload" element={<DataUpload />} />
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />

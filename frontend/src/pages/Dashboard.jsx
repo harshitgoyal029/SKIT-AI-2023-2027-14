@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { getDashboardTestData } from "../services/dashboardService";
 import { getStoredUser } from "../services/authService";
@@ -8,7 +8,9 @@ import PatientDashboardView from "../components/roles/PatientDashboardView";
 import DoctorDashboardView from "../components/roles/DoctorDashboardView";
 import ClinicianDashboardView from "../components/roles/ClinicianDashboardView";
 
-const Dashboard = () => {
+const Dashboard = ({ activeView }) => {
+    const location = useLocation();
+    const currentView = activeView || (location.pathname === "/prediction-results" ? "predictions" : "dashboard");
     const [patient, setPatient] = useState(null);
     const [lastUpdated, setLastUpdated] = useState(null);
     const [testData, setTestData] = useState(null);
@@ -101,34 +103,13 @@ const Dashboard = () => {
 
     return (
         <div className="page">
-            {/* Authenticated Role Portal Banner (Role switcher tabs permanently removed — Point 3) */}
-            <div className="role-switcher-banner">
-                <div className="role-switcher-left">
-                    <span className={`role-indicator-badge ${activeRole}`}>
-                        {activeRole === "patient" && "🫀 Patient Portal"}
-                        {activeRole === "doctor" && "🩺 Cardiology Doctor Suite"}
-                        {activeRole === "clinician" && "🔬 Clinical Intake & Registry"}
-                        {activeRole === "admin" && "⚙️ System Administrator"}
-                    </span>
-                    <span style={{ fontSize: "13px", color: "#64748b" }}>
-                        Signed in as: <strong style={{ color: "#0f172a" }}>{userDisplayName}</strong> ({currentUser?.email || "Authenticated User"})
-                    </span>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <Link
-                        to="/data-upload"
-                        className="secondary-btn"
-                        style={{ fontSize: "12px", padding: "6px 14px", textDecoration: "none" }}
-                    >
-                        📁 Upload Vitals & ECG
-                    </Link>
-                </div>
-            </div>
-
             {/* Strictly Role-Enforced Dashboard View */}
             {activeRole === "patient" && (
-                <PatientDashboardView patient={patient} currentUser={currentUser} />
+                <PatientDashboardView
+                    patient={patient}
+                    currentUser={currentUser}
+                    activeView={currentView}
+                />
             )}
 
             {activeRole === "doctor" && (

@@ -7,7 +7,8 @@ const ROLE_NAV = {
         roleTitle: "PATIENT PORTAL",
         badge: "🫀 Patient",
         links: [
-            { to: "/dashboard", icon: "🫀", label: "My Heart Health" },
+            { to: "/dashboard", icon: "📊", label: "Dashboard" },
+            { to: "/prediction-results", icon: "🎯", label: "Prediction Results" },
             { to: "/data-upload", icon: "📁", label: "Upload Vitals & ECG" },
         ],
     },
