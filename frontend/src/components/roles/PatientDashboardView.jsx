@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { getApiUrl } from "../../services/api";
 import CvdXaiIntroSlider from "../CvdXaiIntroSlider";
 import ClinicalReportPrintDocument from "../ClinicalReportPrintDocument";
+import { printClinicalReport } from "../../utils/printReport";
 
 const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }) => {
     // Real data from MongoDB
@@ -140,7 +141,7 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
     };
 
     const handleDirectPrint = () => {
-        window.print();
+        printClinicalReport("clinical-report-printable-area");
     };
 
     return (
@@ -467,11 +468,19 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                             )}
                             <button
                                 type="button"
+                                className="patient-btn outline"
+                                style={{ fontSize: "13px", padding: "8px 14px" }}
+                                onClick={() => setShowReportModal(true)}
+                            >
+                                👁️ Preview Report
+                            </button>
+                            <button
+                                type="button"
                                 className="patient-btn primary"
                                 style={{ fontSize: "13px", padding: "8px 16px" }}
-                                onClick={handlePrintSummary}
+                                onClick={handleDirectPrint}
                             >
-                                📄 Print Report (PDF)
+                                🖨️ Print Report (PDF)
                             </button>
                         </div>
                     </div>
@@ -779,10 +788,17 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                                     </button>
                                     <button
                                         type="button"
-                                        className="patient-btn primary"
-                                        onClick={handlePrintSummary}
+                                        className="patient-btn outline"
+                                        onClick={() => setShowReportModal(true)}
                                     >
-                                        📄 Print / Save as PDF
+                                        👁️ Preview Report
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="patient-btn primary"
+                                        onClick={handleDirectPrint}
+                                    >
+                                        🖨️ Print / Save as PDF
                                     </button>
                                 </div>
                             </div>

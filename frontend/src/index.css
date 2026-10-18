@@ -5253,41 +5253,121 @@ select {
    Print Mode (ONLY Clinical Report Prints, All Web Chrome Hidden)
    ========================================================================== */
 @media print {
-    /* Hide the entire website interface */
-    body * {
-        visibility: hidden !important;
+    @page {
+        size: A4 portrait;
+        margin: 10mm 12mm;
     }
 
-    .navbar,
-    .sidebar,
+    /* Reset background and sizing for printer/PDF */
+    html,
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Ensure structural parent containers do not collapse or hide children */
+    #root,
+    .app,
     .main-container,
     .content,
     .page,
-    .patient-dashboard-container,
+    .patient-dashboard-container {
+        display: block !important;
+        position: static !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+    }
+
+    /* Hide all web application chrome, navbars, sidebars, interactive widgets */
+    .navbar,
+    .sidebar,
+    .sidebar-overlay,
     .patient-hero-card,
     .patient-status-banner,
-    .report-preview-modal-overlay,
+    .patient-vitals-section,
+    .patient-guidance-section,
+    .cvd-intro-slider,
     .report-preview-modal-header,
+    .patient-modal-overlay,
+    .form-success,
+    .form-error,
     button,
-    a,
-    .patient-btn {
+    .patient-btn,
+    a {
         display: none !important;
     }
 
-    /* Make ONLY the printable clinical report visible */
-    .printable-clinical-report,
-    .printable-clinical-report * {
-        visibility: visible !important;
+    /* If the modal is currently open when printing, neutralize its dark backdrop */
+    .report-preview-modal-overlay {
+        position: static !important;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        display: block !important;
+        backdrop-filter: none !important;
+        z-index: auto !important;
     }
 
-    .printable-clinical-report {
-        display: block !important;
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
+    .report-preview-modal-box {
+        position: static !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
         margin: 0 !important;
-        padding: 8mm 10mm !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        background: transparent !important;
+        overflow: visible !important;
+    }
+
+    .report-preview-modal-body {
+        padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+        overflow: visible !important;
+    }
+
+    .report-paper-preview {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+    }
+
+    /* Avoid double report if modal preview is already in DOM */
+    .report-preview-modal-overlay ~ .printable-clinical-report {
+        display: none !important;
+    }
+
+    /* Format the clinical report itself */
+    .clinical-print-document {
+        display: block !important;
+        visibility: visible !important;
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
         background: #ffffff !important;
         color: #0f172a !important;
         box-shadow: none !important;
@@ -5295,21 +5375,26 @@ select {
         font-size: 10.5pt !important;
     }
 
-    .printable-clinical-report table {
-        page-break-inside: avoid;
+    .clinical-print-document * {
+        visibility: visible !important;
     }
 
-    .print-section {
-        page-break-inside: avoid;
+    .printable-clinical-report {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
     }
 
+    .printable-clinical-report table,
+    .print-section,
+    .print-assessment-box,
+    .print-xai-card,
     .print-signature-section {
         page-break-inside: avoid;
     }
-
-    @page {
-        size: A4 portrait;
-        margin: 8mm 10mm;
-    }
 }
+
 

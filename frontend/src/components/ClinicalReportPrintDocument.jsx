@@ -42,7 +42,7 @@ const ClinicalReportPrintDocument = ({
     const chestPain = latestClinical?.chest_pain_type || "Asymptomatic (ASY)";
 
     return (
-        <div className="clinical-print-document">
+        <div id="clinical-report-printable-area" className="clinical-print-document">
             {/* Header: Institutional & Department Banner */}
             <div className="print-header">
                 <div className="print-header-left">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 const SLIDES = [
     {
@@ -63,174 +63,264 @@ const SLIDES = [
     },
 ];
 
-const CvdXaiIntroSlider = () => {
-    const [currentSlide, setCurrentSlide] = useState(0);
-    const [isPaused, setIsPaused] = useState(false);
+// Infinite loop array: [Clone of Last, ...SLIDES, Clone of First]
+const EXTENDED_SLIDES = [
+    SLIDES[SLIDES.length - 1],
+    ...SLIDES,
+    SLIDES[0],
+];
 
-    // Auto-advance slide every 5.5 seconds unless paused
+const CvdXaiIntroSlider = () => {
+    // Start at index 1 (the first real slide)
+    const [currentIndex, setCurrentIndex] = useState(1);
+    const [isTransitioning, setIsTransitioning] = useState(true);
+    const [isPaused, setIsPaused] = useState(false);
+    const trackRef = useRef(null);
+
+    // Compute zero-based dot indicator index (0 to 3)
+    const activeDotIndex =
+        currentIndex === 0
+            ? SLIDES.length - 1
+            : currentIndex === EXTENDED_SLIDES.length - 1
+            ? 0
+            : currentIndex - 1;
+
+    // Auto-advance slides every 4.8 seconds in automatic sliding motion
     useEffect(() => {
         if (isPaused) return;
+
         const interval = setInterval(() => {
-            setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
-        }, 5500);
+            setIsTransitioning(true);
+            setCurrentIndex((prev) => prev + 1);
+        }, 4800);
+
         return () => clearInterval(interval);
     }, [isPaused]);
 
-    const handlePrev = () => {
-        setCurrentSlide((prev) => (prev - 1 + SLIDES.length) % SLIDES.length);
+    // Handle seamless infinite sliding loop when transition ends
+    const handleTransitionEnd = () => {
+        // If we slid into the clone of the first slide (at the end), instantly snap to real first slide
+        if (currentIndex === EXTENDED_SLIDES.length - 1) {
+            setIsTransitioning(false);
+            setCurrentIndex(1);
+        }
+        // If we slid backwards into the clone of the last slide (at the beginning), instantly snap to real last slide
+        else if (currentIndex === 0) {
+            setIsTransitioning(false);
+            setCurrentIndex(SLIDES.length);
+        }
     };
 
     const handleNext = () => {
-        setCurrentSlide((prev) => (prev + 1) % SLIDES.length);
+        setIsTransitioning(true);
+        setCurrentIndex((prev) => prev + 1);
     };
 
-    const slide = SLIDES[currentSlide];
+    const handlePrev = () => {
+        setIsTransitioning(true);
+        setCurrentIndex((prev) => prev - 1);
+    };
+
+    const handleDotClick = (targetIndex) => {
+        setIsTransitioning(true);
+        setCurrentIndex(targetIndex + 1);
+    };
 
     return (
         <div
+            className="cvd-intro-slider-container"
             style={{
                 position: "relative",
+                width: "100%",
                 borderRadius: "18px",
                 overflow: "hidden",
                 boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
-                background: slide.gradient,
-                color: "#ffffff",
-                transition: "background 0.8s ease-in-out",
+                background: "#0f172a",
                 minHeight: "220px",
+                userSelect: "none",
             }}
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
         >
-            {/* Background glowing ambient shape */}
+            {/* Sliding Track */}
             <div
+                ref={trackRef}
+                onTransitionEnd={handleTransitionEnd}
                 style={{
-                    position: "absolute",
-                    top: "-40px",
-                    right: "-40px",
-                    width: "240px",
-                    height: "240px",
-                    borderRadius: "50%",
-                    background: "rgba(255, 255, 255, 0.1)",
-                    filter: "blur(30px)",
-                    pointerEvents: "none",
-                }}
-            />
-
-            <div
-                style={{
-                    padding: "30px 36px 36px",
                     display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "28px",
-                    position: "relative",
-                    zIndex: 2,
+                    width: "100%",
+                    transform: `translateX(-${currentIndex * 100}%)`,
+                    transition: isTransitioning
+                        ? "transform 0.75s cubic-bezier(0.25, 1, 0.5, 1)"
+                        : "none",
+                    willChange: "transform",
                 }}
             >
-                {/* Left content */}
-                <div style={{ flex: 1, maxWidth: "780px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-                        <span
+                {EXTENDED_SLIDES.map((slide, idx) => {
+                    // Determine slide number for step indicator
+                    const stepNum =
+                        idx === 0
+                            ? SLIDES.length
+                            : idx === EXTENDED_SLIDES.length - 1
+                            ? 1
+                            : idx;
+
+                    return (
+                        <div
+                            key={idx}
                             style={{
-                                background: "rgba(255, 255, 255, 0.2)",
-                                backdropFilter: "blur(4px)",
-                                padding: "4px 12px",
-                                borderRadius: "20px",
-                                fontSize: "11px",
-                                fontWeight: 700,
-                                letterSpacing: "0.6px",
-                                textTransform: "uppercase",
+                                flex: "0 0 100%",
+                                width: "100%",
+                                minWidth: "100%",
+                                boxSizing: "border-box",
+                                background: slide.gradient,
+                                color: "#ffffff",
+                                padding: "30px 36px 42px",
+                                position: "relative",
+                                overflow: "hidden",
                             }}
                         >
-                            {slide.badge}
-                        </span>
-                        <span style={{ fontSize: "12px", opacity: 0.85 }}>
-                            Step {currentSlide + 1} of {SLIDES.length}
-                        </span>
-                    </div>
-
-                    <h3
-                        style={{
-                            margin: "0 0 6px",
-                            fontSize: "24px",
-                            fontWeight: 800,
-                            letterSpacing: "-0.3px",
-                            lineHeight: "1.25",
-                        }}
-                    >
-                        {slide.title}
-                    </h3>
-
-                    <p
-                        style={{
-                            margin: "0 0 14px",
-                            fontSize: "14px",
-                            fontWeight: 600,
-                            opacity: 0.95,
-                            lineHeight: "1.4",
-                        }}
-                    >
-                        {slide.subtitle}
-                    </p>
-
-                    <p
-                        style={{
-                            margin: "0 0 18px",
-                            fontSize: "13.5px",
-                            opacity: 0.88,
-                            lineHeight: "1.6",
-                            maxWidth: "680px",
-                        }}
-                    >
-                        {slide.description}
-                    </p>
-
-                    {/* Feature Highlight Pills */}
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                        {slide.highlights.map((h, idx) => (
-                            <span
-                                key={idx}
+                            {/* Glowing ambient background circle */}
+                            <div
                                 style={{
-                                    display: "inline-flex",
+                                    position: "absolute",
+                                    top: "-50px",
+                                    right: "-50px",
+                                    width: "260px",
+                                    height: "260px",
+                                    borderRadius: "50%",
+                                    background: "rgba(255, 255, 255, 0.12)",
+                                    filter: "blur(32px)",
+                                    pointerEvents: "none",
+                                }}
+                            />
+
+                            {/* Main slide content row */}
+                            <div
+                                style={{
+                                    display: "flex",
                                     alignItems: "center",
-                                    gap: "6px",
-                                    background: "rgba(255, 255, 255, 0.16)",
-                                    backdropFilter: "blur(4px)",
-                                    padding: "5px 12px",
-                                    borderRadius: "8px",
-                                    fontSize: "12px",
-                                    fontWeight: 600,
+                                    justifyContent: "space-between",
+                                    gap: "28px",
+                                    position: "relative",
+                                    zIndex: 2,
                                 }}
                             >
-                                <span>{h.icon}</span>
-                                <span>{h.label}</span>
-                            </span>
-                        ))}
-                    </div>
-                </div>
+                                {/* Left Content */}
+                                <div style={{ flex: 1, maxWidth: "780px" }}>
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "10px",
+                                            marginBottom: "8px",
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                background: "rgba(255, 255, 255, 0.2)",
+                                                backdropFilter: "blur(4px)",
+                                                padding: "4px 12px",
+                                                borderRadius: "20px",
+                                                fontSize: "11px",
+                                                fontWeight: 700,
+                                                letterSpacing: "0.6px",
+                                                textTransform: "uppercase",
+                                            }}
+                                        >
+                                            {slide.badge}
+                                        </span>
+                                        <span style={{ fontSize: "12px", opacity: 0.85 }}>
+                                            Step {stepNum} of {SLIDES.length}
+                                        </span>
+                                    </div>
 
-                {/* Right Visual Graphic */}
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: "120px",
-                        height: "120px",
-                        borderRadius: "24px",
-                        background: "rgba(255, 255, 255, 0.15)",
-                        backdropFilter: "blur(8px)",
-                        border: "1.5px solid rgba(255, 255, 255, 0.25)",
-                        fontSize: "56px",
-                        flexShrink: 0,
-                        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
-                    }}
-                >
-                    {slide.icon}
-                </div>
+                                    <h3
+                                        style={{
+                                            margin: "0 0 6px",
+                                            fontSize: "24px",
+                                            fontWeight: 800,
+                                            letterSpacing: "-0.3px",
+                                            lineHeight: "1.25",
+                                        }}
+                                    >
+                                        {slide.title}
+                                    </h3>
+
+                                    <p
+                                        style={{
+                                            margin: "0 0 14px",
+                                            fontSize: "14px",
+                                            fontWeight: 600,
+                                            opacity: 0.95,
+                                            lineHeight: "1.4",
+                                        }}
+                                    >
+                                        {slide.subtitle}
+                                    </p>
+
+                                    <p
+                                        style={{
+                                            margin: "0 0 18px",
+                                            fontSize: "13.5px",
+                                            opacity: 0.88,
+                                            lineHeight: "1.6",
+                                            maxWidth: "680px",
+                                        }}
+                                    >
+                                        {slide.description}
+                                    </p>
+
+                                    {/* Feature Highlight Pills */}
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                                        {slide.highlights.map((h, hIdx) => (
+                                            <span
+                                                key={hIdx}
+                                                style={{
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    gap: "6px",
+                                                    background: "rgba(255, 255, 255, 0.16)",
+                                                    backdropFilter: "blur(4px)",
+                                                    padding: "5px 12px",
+                                                    borderRadius: "8px",
+                                                    fontSize: "12px",
+                                                    fontWeight: 600,
+                                                }}
+                                            >
+                                                <span>{h.icon}</span>
+                                                <span>{h.label}</span>
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Right Visual Icon Graphic */}
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        width: "120px",
+                                        height: "120px",
+                                        borderRadius: "24px",
+                                        background: "rgba(255, 255, 255, 0.16)",
+                                        backdropFilter: "blur(8px)",
+                                        border: "1.5px solid rgba(255, 255, 255, 0.28)",
+                                        fontSize: "56px",
+                                        flexShrink: 0,
+                                        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
+                                    }}
+                                >
+                                    {slide.icon}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
-            {/* Bottom Slider Controls & Dots */}
+            {/* Bottom Controls: Navigation Dots & Arrow Buttons */}
             <div
                 style={{
                     position: "absolute",
@@ -240,7 +330,8 @@ const CvdXaiIntroSlider = () => {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    zIndex: 3,
+                    zIndex: 10,
+                    pointerEvents: "auto",
                 }}
             >
                 {/* Dots indicator */}
@@ -249,16 +340,19 @@ const CvdXaiIntroSlider = () => {
                         <button
                             key={index}
                             type="button"
-                            onClick={() => setCurrentSlide(index)}
+                            onClick={() => handleDotClick(index)}
                             aria-label={`Go to slide ${index + 1}`}
                             style={{
-                                width: currentSlide === index ? "24px" : "8px",
+                                width: activeDotIndex === index ? "26px" : "8px",
                                 height: "8px",
                                 borderRadius: "4px",
                                 border: "none",
-                                background: currentSlide === index ? "#ffffff" : "rgba(255, 255, 255, 0.4)",
+                                background:
+                                    activeDotIndex === index
+                                        ? "#ffffff"
+                                        : "rgba(255, 255, 255, 0.4)",
                                 cursor: "pointer",
-                                transition: "all 0.3s ease",
+                                transition: "all 0.35s ease",
                                 padding: 0,
                             }}
                         />
@@ -276,14 +370,22 @@ const CvdXaiIntroSlider = () => {
                             height: "28px",
                             borderRadius: "50%",
                             border: "none",
-                            background: "rgba(255, 255, 255, 0.2)",
+                            background: "rgba(255, 255, 255, 0.22)",
                             color: "#ffffff",
                             cursor: "pointer",
                             fontSize: "14px",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            transition: "background 0.2s",
+                            transition: "background 0.2s, transform 0.15s",
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "rgba(255, 255, 255, 0.35)";
+                            e.currentTarget.style.transform = "scale(1.08)";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "rgba(255, 255, 255, 0.22)";
+                            e.currentTarget.style.transform = "scale(1)";
                         }}
                     >
                         ‹
@@ -297,14 +399,22 @@ const CvdXaiIntroSlider = () => {
                             height: "28px",
                             borderRadius: "50%",
                             border: "none",
-                            background: "rgba(255, 255, 255, 0.2)",
+                            background: "rgba(255, 255, 255, 0.22)",
                             color: "#ffffff",
                             cursor: "pointer",
                             fontSize: "14px",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            transition: "background 0.2s",
+                            transition: "background 0.2s, transform 0.15s",
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "rgba(255, 255, 255, 0.35)";
+                            e.currentTarget.style.transform = "scale(1.08)";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "rgba(255, 255, 255, 0.22)";
+                            e.currentTarget.style.transform = "scale(1)";
                         }}
                     >
                         ›
@@ -316,4 +426,3 @@ const CvdXaiIntroSlider = () => {
 };
 
 export default CvdXaiIntroSlider;
-

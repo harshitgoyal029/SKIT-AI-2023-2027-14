@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { printClinicalReport } from "../utils/printReport";
 
 const AiReport = ({ patient, testData }) => {
     const report = useMemo(() => {
@@ -102,7 +103,7 @@ const AiReport = ({ patient, testData }) => {
 
                 <div className="ai-report-footer">
                     <span>Report status: Test Workflow</span>
-                    <button type="button" className="secondary-btn" onClick={() => window.print()}>
+                    <button type="button" className="secondary-btn" onClick={() => printClinicalReport()}>
                         Print Report
                     </button>
                 </div>
