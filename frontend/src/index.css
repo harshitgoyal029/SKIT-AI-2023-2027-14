@@ -4839,3 +4839,477 @@ select {
         align-items: flex-start;
     }
 }
+
+/* ==========================================================================
+   Dedicated Clinical Medical Report (Print & PDF Friendly Format)
+   ========================================================================== */
+
+.clinical-print-document {
+    background: #ffffff;
+    color: #0f172a;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+}
+
+.print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.print-header-left {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+
+.print-institution-logo {
+    font-size: 38px;
+    line-height: 1;
+}
+
+.print-institution-name {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 800;
+    color: #0369a1;
+    letter-spacing: -0.3px;
+}
+
+.print-institution-dept {
+    margin: 2px 0 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.print-institution-sub {
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.print-header-right {
+    text-align: right;
+    font-size: 11px;
+    color: #475569;
+}
+
+.print-doc-classification {
+    display: inline-block;
+    padding: 3px 8px;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #0f172a;
+    margin-bottom: 6px;
+}
+
+.print-meta-line {
+    margin-bottom: 2px;
+}
+
+.print-divider {
+    height: 2px;
+    background: #0284c7;
+    margin-bottom: 14px;
+}
+
+.print-title-section {
+    text-align: center;
+    margin-bottom: 18px;
+    padding: 6px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.print-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #0f172a;
+}
+
+.print-subtitle {
+    margin: 3px 0 0;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.print-section {
+    margin-bottom: 16px;
+    page-break-inside: avoid;
+}
+
+.print-section-header {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    color: #0369a1;
+    text-transform: uppercase;
+    border-bottom: 1.5px solid #cbd5e1;
+    padding-bottom: 3px;
+    margin-bottom: 8px;
+}
+
+.print-demographics-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.print-demographics-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.print-demog-label {
+    width: 22%;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.print-demog-val {
+    width: 28%;
+    color: #0f172a;
+}
+
+.print-assessment-box {
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 8px;
+}
+
+.print-assessment-box.risk-detected {
+    border: 1.5px solid #ef4444;
+    background: #fef2f2;
+}
+
+.print-assessment-box.risk-optimal {
+    border: 1.5px solid #16a34a;
+    background: #f0fdf4;
+}
+
+.print-assessment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.print-eval-tag {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #475569;
+    text-transform: uppercase;
+    display: block;
+}
+
+.print-eval-finding {
+    margin: 2px 0 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.print-eval-badge {
+    padding: 5px 14px;
+    border-radius: 14px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #ffffff;
+}
+
+.badge-risk {
+    background: #dc2626;
+}
+
+.badge-optimal {
+    background: #16a34a;
+}
+
+.print-eval-body p {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #334155;
+}
+
+.print-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    border: 1px solid #cbd5e1;
+}
+
+.print-data-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    text-align: left;
+    padding: 7px 10px;
+    border: 1px solid #cbd5e1;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.print-data-table td {
+    padding: 7px 10px;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+}
+
+.print-data-table td strong {
+    display: block;
+    color: #0f172a;
+}
+
+.print-data-table td small {
+    display: block;
+    color: #64748b;
+    font-size: 10.5px;
+}
+
+.text-warn {
+    color: #b91c1c !important;
+    font-weight: 700;
+}
+
+.text-ok {
+    color: #15803d !important;
+    font-weight: 600;
+}
+
+.print-xai-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.print-xai-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+
+.print-xai-title {
+    font-size: 11.5px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    color: #0f172a;
+}
+
+.print-xai-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 11.5px;
+    color: #334155;
+}
+
+.print-xai-list li {
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+
+.print-guidance-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.print-guidance-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+}
+
+.print-guidance-item strong {
+    display: block;
+    color: #0369a1;
+    margin-bottom: 3px;
+}
+
+.print-guidance-item p {
+    margin: 0;
+    color: #475569;
+    line-height: 1.4;
+}
+
+.print-signature-section {
+    margin-top: 20px;
+    padding-top: 10px;
+    border-top: 1px solid #cbd5e1;
+}
+
+.print-signature-grid {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 30px;
+}
+
+.print-signature-box {
+    flex: 1;
+}
+
+.print-sig-line {
+    height: 1px;
+    background: #94a3b8;
+    margin-bottom: 6px;
+}
+
+.print-sig-role {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0f172a;
+    display: block;
+}
+
+.print-signature-box small {
+    font-size: 10px;
+    color: #64748b;
+    display: block;
+}
+
+.print-disclaimer {
+    background: #f8fafc;
+    border-left: 3px solid #0284c7;
+    padding: 6px 10px;
+    font-size: 9.5px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+/* Modal styling on screen */
+.report-preview-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.report-preview-modal-box {
+    background: #f1f5f9;
+    width: 100%;
+    max-width: 900px;
+    max-height: 92vh;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.report-preview-modal-header {
+    padding: 14px 22px;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.report-preview-modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+}
+
+.report-paper-preview {
+    width: 100%;
+    max-width: 800px;
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border-radius: 6px;
+    padding: 32px 36px;
+}
+
+@media screen {
+    .printable-clinical-report.hidden-screen {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   Print Mode (ONLY Clinical Report Prints, All Web Chrome Hidden)
+   ========================================================================== */
+@media print {
+    /* Hide the entire website interface */
+    body * {
+        visibility: hidden !important;
+    }
+
+    .navbar,
+    .sidebar,
+    .main-container,
+    .content,
+    .page,
+    .patient-dashboard-container,
+    .patient-hero-card,
+    .patient-status-banner,
+    .report-preview-modal-overlay,
+    .report-preview-modal-header,
+    button,
+    a,
+    .patient-btn {
+        display: none !important;
+    }
+
+    /* Make ONLY the printable clinical report visible */
+    .printable-clinical-report,
+    .printable-clinical-report * {
+        visibility: visible !important;
+    }
+
+    .printable-clinical-report {
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 8mm 10mm !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        box-shadow: none !important;
+        border: none !important;
+        font-size: 10.5pt !important;
+    }
+
+    .printable-clinical-report table {
+        page-break-inside: avoid;
+    }
+
+    .print-section {
+        page-break-inside: avoid;
+    }
+
+    .print-signature-section {
+        page-break-inside: avoid;
+    }
+
+    @page {
+        size: A4 portrait;
+        margin: 8mm 10mm;
+    }
+}
+

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getApiUrl } from "../../services/api";
 import CvdXaiIntroSlider from "../CvdXaiIntroSlider";
+import ClinicalReportPrintDocument from "../ClinicalReportPrintDocument";
 
 const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }) => {
     // Real data from MongoDB
@@ -15,9 +16,10 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
     const [stepSuccessMsg, setStepSuccessMsg] = useState("");
     const [stepErrorMsg, setStepErrorMsg] = useState("");
 
-    // Message triage modal
+    // Message triage and Print preview modals
     const [showContactModal, setShowContactModal] = useState(false);
     const [triageMsgSent, setTriageMsgSent] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
 
     const token = localStorage.getItem("cvd_xai_access_token") || localStorage.getItem("cvd_token");
 
@@ -134,6 +136,10 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
     };
 
     const handlePrintSummary = () => {
+        setShowReportModal(true);
+    };
+
+    const handleDirectPrint = () => {
         window.print();
     };
 
@@ -829,6 +835,67 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                     </div>
                 </div>
             )}
+
+            {/* Medical Clinical Report Preview & Print Modal */}
+            {showReportModal && (
+                <div className="report-preview-modal-overlay" onClick={() => setShowReportModal(false)}>
+                    <div className="report-preview-modal-box" onClick={(e) => e.stopPropagation()}>
+                        <div className="report-preview-modal-header">
+                            <div>
+                                <strong style={{ fontSize: "16px", color: "#0f172a", display: "block" }}>
+                                    📄 Official Medical Clinical Report Preview
+                                </strong>
+                                <span style={{ fontSize: "12px", color: "#64748b" }}>
+                                    Formatted specifically for high-clarity A4 printing and PDF record saving (zero website UI elements)
+                                </span>
+                            </div>
+                            <div style={{ display: "flex", gap: "10px" }}>
+                                <button
+                                    type="button"
+                                    className="patient-btn primary"
+                                    style={{ padding: "8px 18px", fontSize: "13px", fontWeight: 700 }}
+                                    onClick={handleDirectPrint}
+                                >
+                                    🖨️ Print / Save as PDF
+                                </button>
+                                <button
+                                    type="button"
+                                    className="patient-btn outline"
+                                    style={{ padding: "8px 16px", fontSize: "13px" }}
+                                    onClick={() => setShowReportModal(false)}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="report-preview-modal-body">
+                            <div className="report-paper-preview">
+                                <ClinicalReportPrintDocument
+                                    patient={patient}
+                                    currentUser={currentUser}
+                                    latestClinical={latestClinical}
+                                    latestPrediction={latestPrediction}
+                                    hasDiseaseRisk={hasDiseaseRisk}
+                                    riskStatusLabel={riskStatusLabel}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Dedicated Print Engine Container (Always active for @media print, hidden on screen) */}
+            <div className="printable-clinical-report hidden-screen">
+                <ClinicalReportPrintDocument
+                    patient={patient}
+                    currentUser={currentUser}
+                    latestClinical={latestClinical}
+                    latestPrediction={latestPrediction}
+                    hasDiseaseRisk={hasDiseaseRisk}
+                    riskStatusLabel={riskStatusLabel}
+                />
+            </div>
         </div>
     );
 };
