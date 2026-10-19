@@ -149,7 +149,7 @@ class PredictionResult(BaseModel):
     model_name: str = Field(description="e.g. 'fusion_v1', 'clinical_xgboost'")
     model_version: str = "1.0.0"
     risk_score: float = Field(ge=0.0, le=1.0, description="Predicted probability of disease")
-    predicted_label: Literal["low_risk", "high_risk"]
+    predicted_label: Literal["low_risk", "moderate_risk", "high_risk"]
 
     # Explainability — one entry per input feature that influenced the score
     shap_values: Optional[dict[str, float]] = None
