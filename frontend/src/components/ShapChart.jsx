@@ -3,19 +3,30 @@ import React, { useMemo } from "react";
 const ShapChart = ({ features = [], method = "SHAP" }) => {
     const chartData = useMemo(() => {
         return features
-            .filter((feature) => feature?.feature)
             .map((feature) => {
-                const rawValue = Number(feature.contribution) || 0;
-                const direction = String(feature.direction || "positive").toLowerCase();
-                const isNegative = direction.includes("negative") || direction.includes("decrease") || direction.includes("down");
-                const value = Math.abs(rawValue);
+                const featureName = feature?.feature ?? feature?.feature_name ?? feature?.name;
+                const rawContribution = feature?.contribution ?? feature?.shap_value ?? feature?.value;
+                const parsedContribution = Number(rawContribution);
+                if (!featureName || !Number.isFinite(parsedContribution)) return null;
+
+                const direction = String(feature.direction || "").toLowerCase();
+                const directionIsNegative = direction.includes("negative") || direction.includes("decrease") || direction.includes("down");
+                const directionIsPositive = direction.includes("positive") || direction.includes("increase") || direction.includes("up");
+                const signedValue = directionIsNegative
+                    ? -Math.abs(parsedContribution)
+                    : directionIsPositive
+                        ? Math.abs(parsedContribution)
+                        : parsedContribution;
+                const isNegative = signedValue < 0;
 
                 return {
                     ...feature,
-                    signedValue: isNegative ? -value : value,
-                    directionLabel: isNegative ? "Negative impact" : "Positive impact",
+                    feature: String(featureName),
+                    signedValue,
+                    directionLabel: isNegative ? "Decreases model output" : signedValue > 0 ? "Increases model output" : "No directional impact",
                 };
             })
+            .filter(Boolean)
             .sort((a, b) => Math.abs(b.signedValue) - Math.abs(a.signedValue));
     }, [features]);
 
@@ -24,7 +35,21 @@ const ShapChart = ({ features = [], method = "SHAP" }) => {
         0.01
     );
 
-    if (!chartData.length) return null;
+    if (!chartData.length) {
+        return (
+            <div className="dashboard-section shap-chart-section">
+                <div className="section-heading">
+                    <div>
+                        <span className="welcome-label">MODEL EXPLAINABILITY</span>
+                        <h2>{method} Feature Contribution</h2>
+                    </div>
+                </div>
+                <div className="shap-chart-card" role="status">
+                    No feature-attribution data is available for this assessment yet.
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="dashboard-section shap-chart-section">
@@ -42,8 +67,8 @@ const ShapChart = ({ features = [], method = "SHAP" }) => {
 
             <div className="shap-chart-card">
                 <div className="shap-chart-legend">
-                    <span><i className="shap-dot positive" /> Increases risk</span>
-                    <span><i className="shap-dot negative" /> Decreases risk</span>
+                    <span><i className="shap-dot positive" /> Positive contribution</span>
+                    <span><i className="shap-dot negative" /> Negative contribution</span>
                 </div>
 
                 <div className="shap-axis">
@@ -68,12 +93,14 @@ const ShapChart = ({ features = [], method = "SHAP" }) => {
                                     <div
                                         className={`shap-bar ${isNegative ? "negative" : "positive"}`}
                                         style={{ width: `${width}%` }}
+                                        role="img"
+                                        aria-label={`${feature.feature}: ${feature.signedValue.toFixed(3)} contribution`}
                                     />
                                 </div>
 
                                 <div className={`shap-value ${isNegative ? "negative" : "positive"}`}>
-                                    {isNegative ? "-" : "+"}
-                                    {(Math.abs(feature.signedValue) * 100).toFixed(0)}%
+                                    {feature.signedValue > 0 ? "+" : feature.signedValue < 0 ? "−" : ""}
+                                    {Math.abs(feature.signedValue).toFixed(3)}
                                 </div>
                             </div>
                         );
@@ -83,9 +110,10 @@ const ShapChart = ({ features = [], method = "SHAP" }) => {
                 <div className="shap-chart-note">
                     <span>ⓘ</span>
                     <p>
-                        Larger bars indicate a stronger contribution to the model
-                        explanation. This view uses the dashboard test data until
-                        the live SHAP backend is connected.
+                        Larger bars indicate a stronger contribution magnitude. Values are shown in
+                        the units supplied by the explanation service; direction labels indicate
+                        whether the feature raises or lowers the model output. Review these values
+                        alongside the full clinical assessment.
                     </p>
                 </div>
             </div>
