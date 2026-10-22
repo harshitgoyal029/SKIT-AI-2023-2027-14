@@ -146,15 +146,20 @@ class PredictionResult(BaseModel):
     ecg_recording_id: Optional[PyObjectId] = None
 
     # Model output
-    model_name: str = Field(description="e.g. 'fusion_v1', 'clinical_xgboost'")
+    model_name: str = Field(description="e.g. 'fusion_v1', 'clinical_dnn', 'ecg_cnn_bilstm'")
     model_version: str = "1.0.0"
+    modality: Optional[Literal["clinical", "ecg", "multimodal_fusion"]] = "clinical"
     risk_score: float = Field(ge=0.0, le=1.0, description="Predicted probability of disease")
-    predicted_label: Literal["low_risk", "moderate_risk", "high_risk"]
+    predicted_label: Literal["low_risk", "moderate_risk", "high_risk", "Normal", "Abnormal"]
+    confidence_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
     # Explainability — one entry per input feature that influenced the score
+    base_value: Optional[float] = Field(default=None, description="Model baseline prior probability")
+    expected_value: Optional[float] = Field(default=None, description="Expected value for SHAP explainer")
     shap_values: Optional[dict[str, float]] = None
     lime_values: Optional[dict[str, float]] = None
     top_contributing_features: Optional[list[str]] = None
+    waterfall_points: Optional[list[dict[str, Any]]] = None
 
     created_at: datetime = Field(default_factory=utcnow)
 
