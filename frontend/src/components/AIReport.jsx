@@ -35,11 +35,10 @@ const AiReport = ({ patient, testData }) => {
                     <span className="welcome-label">AI REPORT</span>
                     <h2>Clinical Assessment Summary</h2>
                     <p>
-                        Structured report generated from the current dashboard test
-                        assessment and available clinical explanation data.
+                        Structured summary based on the assessment and clinical explanation data currently available in the dashboard.
                     </p>
                 </div>
-                <span className="ai-report-badge">AI GENERATED</span>
+                <span className="ai-report-badge">CLINICAL SUMMARY</span>
             </div>
 
             <div className="ai-report-card">
@@ -94,8 +93,7 @@ const AiReport = ({ patient, testData }) => {
                     <section className="ai-report-block">
                         <h3>Clinical Review</h3>
                         <p>
-                            This report is intended to support clinician review. It should not be used
-                            as a standalone medical diagnosis or treatment recommendation.
+                            This summary supports clinician review only. Confirm the source data and model output before making clinical decisions; it is not a standalone diagnosis or treatment recommendation.
                         </p>
                     </section>
                 </div>
