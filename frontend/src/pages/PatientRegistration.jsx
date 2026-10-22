@@ -385,14 +385,13 @@ const PatientRegistration = () => {
         );
     };
 
-    const renderLabel = (field, required = false) => {
-        return (
-            <label>
-                {fieldLabels[field]}
-                {required && <span className="required">*</span>}
-            </label>
-        );
-    };
+    const renderLabel = (field, required = false) => (
+        <label htmlFor={`patient-${field}`}>
+            {fieldLabels[field]}
+            {required && <span className="required" aria-hidden="true">*</span>}
+            {required && <span className="sr-only"> (required)</span>}
+        </label>
+    );
 
     return (
         <div className="page">
@@ -442,7 +441,10 @@ const PatientRegistration = () => {
                         <input
                             className={getFieldClass("patientId")}
                             type="text"
+                            id="patient-patientId"
                             name="patientId"
+                            aria-invalid={Boolean(errors.patientId)}
+                            required
                             placeholder="Enter patient ID"
                             value={formData.patientId}
                             onChange={handleChange}
@@ -458,7 +460,10 @@ const PatientRegistration = () => {
                         <input
                             className={getFieldClass("name")}
                             type="text"
+                            id="patient-name"
                             name="name"
+                            aria-invalid={Boolean(errors.name)}
+                            required
                             placeholder="Enter full name"
                             value={formData.name}
                             onChange={handleChange}
@@ -474,7 +479,10 @@ const PatientRegistration = () => {
                         <input
                             className={getFieldClass("age")}
                             type="number"
+                            id="patient-age"
                             name="age"
+                            aria-invalid={Boolean(errors.age)}
+                            required
                             min="1"
                             max="120"
                             placeholder="Enter age"
@@ -490,7 +498,10 @@ const PatientRegistration = () => {
 
                         <select
                             className={getFieldClass("gender")}
+                            id="patient-gender"
                             name="gender"
+                            aria-invalid={Boolean(errors.gender)}
+                            required
                             value={formData.gender}
                             onChange={handleChange}
                         >
@@ -509,7 +520,9 @@ const PatientRegistration = () => {
                         <input
                             className={getFieldClass("phone")}
                             type="tel"
+                            id="patient-phone"
                             name="phone"
+                            aria-invalid={Boolean(errors.phone)}
                             placeholder="Enter phone number"
                             value={formData.phone}
                             onChange={handleChange}
@@ -525,7 +538,9 @@ const PatientRegistration = () => {
                         <input
                             className={getFieldClass("email")}
                             type="email"
+                            id="patient-email"
                             name="email"
+                            aria-invalid={Boolean(errors.email)}
                             placeholder="Enter email"
                             value={formData.email}
                             onChange={handleChange}
@@ -551,7 +566,9 @@ const PatientRegistration = () => {
                         <input
                             className={getFieldClass("bloodPressure")}
                             type="text"
+                            id="patient-bloodPressure"
                             name="bloodPressure"
+                            aria-invalid={Boolean(errors.bloodPressure)}
                             placeholder="e.g. 120/80"
                             value={formData.bloodPressure}
                             onChange={handleChange}
@@ -566,7 +583,9 @@ const PatientRegistration = () => {
                         <input
                             className={getFieldClass("cholesterol")}
                             type="number"
+                            id="patient-cholesterol"
                             name="cholesterol"
+                            aria-invalid={Boolean(errors.cholesterol)}
                             min="50"
                             max="1000"
                             placeholder="mg/dL"
@@ -583,7 +602,9 @@ const PatientRegistration = () => {
                         <input
                             className={getFieldClass("heartRate")}
                             type="number"
+                            id="patient-heartRate"
                             name="heartRate"
+                            aria-invalid={Boolean(errors.heartRate)}
                             min="30"
                             max="250"
                             placeholder="BPM"
@@ -598,6 +619,7 @@ const PatientRegistration = () => {
                         {renderLabel("diabetes")}
 
                         <select
+                            id="patient-diabetes"
                             name="diabetes"
                             value={formData.diabetes}
                             onChange={handleChange}
@@ -611,6 +633,7 @@ const PatientRegistration = () => {
                         {renderLabel("smoking")}
 
                         <select
+                            id="patient-smoking"
                             name="smoking"
                             value={formData.smoking}
                             onChange={handleChange}
@@ -624,6 +647,7 @@ const PatientRegistration = () => {
                         {renderLabel("familyHistory")}
 
                         <select
+                            id="patient-familyHistory"
                             name="familyHistory"
                             value={formData.familyHistory}
                             onChange={handleChange}
