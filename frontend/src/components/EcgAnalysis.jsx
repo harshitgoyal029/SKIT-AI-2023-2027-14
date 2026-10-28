@@ -1,29 +1,59 @@
 import React, { useMemo } from "react";
 
+const MAX_RENDERED_SAMPLES = 1200;
+
+const readSampleValue = (sample) => {
+    const rawValue = typeof sample === "object" && sample !== null
+        ? (sample.value ?? sample.amplitude ?? sample.y)
+        : sample;
+    if (rawValue === null || rawValue === undefined || rawValue === "") {
+        return Number.NaN;
+    }
+    return Number(rawValue);
+};
+
+const downsample = (values, maxSamples = MAX_RENDERED_SAMPLES) => {
+    if (values.length <= maxSamples) return values;
+    const result = [];
+    const step = (values.length - 1) / (maxSamples - 1);
+    for (let index = 0; index < maxSamples; index += 1) {
+        result.push(values[Math.round(index * step)]);
+    }
+    return result;
+};
+
+const makeIllustrativeWaveform = () => Array.from({ length: 180 }, (_, index) => {
+    const cycle = index % 36;
+    let value = Math.sin(index * 0.18) * 0.08;
+    if (cycle === 8) value = -0.22;
+    if (cycle === 9) value = 0.75;
+    if (cycle === 10) value = -0.42;
+    if (cycle >= 11 && cycle <= 14) value += 0.12;
+    return value;
+});
+
 const EcgAnalysis = ({ ecg = {} }) => {
-    const waveform = useMemo(() => {
-        const suppliedSignal = ecg?.waveform || ecg?.signal || ecg?.samples;
-        if (Array.isArray(suppliedSignal) && suppliedSignal.length > 1) {
-            const normalized = suppliedSignal
-                .map((sample) => Number(typeof sample === "object" && sample !== null
-                    ? (sample.value ?? sample.amplitude ?? sample.y)
-                    : sample))
-                .filter(Number.isFinite);
-            if (normalized.length > 1) return normalized;
+    const waveformData = useMemo(() => {
+        const suppliedSignal = ecg?.waveform ?? ecg?.signal ?? ecg?.samples;
+        const normalized = Array.isArray(suppliedSignal)
+            ? suppliedSignal.map(readSampleValue).filter(Number.isFinite)
+            : [];
+
+        if (normalized.length > 1) {
+            return {
+                waveform: downsample(normalized),
+                hasRealSignal: true,
+            };
         }
 
-        // Clearly labelled visual placeholder when no real signal was supplied.
-        return Array.from({ length: 180 }, (_, index) => {
-            const cycle = index % 36;
-            let value = Math.sin(index * 0.18) * 0.08;
-            if (cycle === 8) value = -0.22;
-            if (cycle === 9) value = 0.75;
-            if (cycle === 10) value = -0.42;
-            if (cycle >= 11 && cycle <= 14) value += 0.12;
-            return value;
-        });
+        // Clearly labelled visual placeholder when no usable ECG signal was supplied.
+        return {
+            waveform: makeIllustrativeWaveform(),
+            hasRealSignal: false,
+        };
     }, [ecg?.waveform, ecg?.signal, ecg?.samples]);
 
+    const { waveform, hasRealSignal } = waveformData;
     const signalMin = Math.min(...waveform, -0.01);
     const signalMax = Math.max(...waveform, 0.01);
     const signalRange = signalMax - signalMin || 1;
@@ -34,13 +64,6 @@ const EcgAnalysis = ({ ecg = {} }) => {
             return `${x},${y}`;
         })
         .join(" ");
-    const suppliedSignal = ecg?.waveform || ecg?.signal || ecg?.samples;
-    const hasRealSignal = Array.isArray(suppliedSignal) && suppliedSignal.length > 1
-        && suppliedSignal.some((sample) => Number.isFinite(Number(
-            typeof sample === "object" && sample !== null
-                ? (sample.value ?? sample.amplitude ?? sample.y)
-                : sample
-        )));
 
     return (
         <div className="dashboard-section ecg-analysis-section">
@@ -51,7 +74,7 @@ const EcgAnalysis = ({ ecg = {} }) => {
                     <p>
                         {hasRealSignal
                             ? "Signal supplied by the ECG analysis service. Interpret with the full clinical assessment."
-                            : "Illustrative waveform shown because no ECG samples were supplied for this assessment."}
+                            : "Illustrative waveform shown because no usable ECG samples were supplied for this assessment."}
                     </p>
                 </div>
                 <span className="ecg-status-badge">{ecg.status || "Test Data"}</span>
@@ -59,14 +82,26 @@ const EcgAnalysis = ({ ecg = {} }) => {
 
             <div className="ecg-analysis-card">
                 <div className="ecg-grid">
-                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={hasRealSignal ? "Supplied ECG waveform" : "Illustrative ECG waveform, not patient data"}>
+                    <svg
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="none"
+                        role="img"
+                        aria-label={hasRealSignal
+                            ? "Supplied ECG waveform"
+                            : "Illustrative ECG waveform, not patient data"}
+                    >
                         <defs>
                             <pattern id="ecgGrid" width="5" height="5" patternUnits="userSpaceOnUse">
                                 <path d="M 5 0 L 0 0 0 5" fill="none" stroke="currentColor" strokeWidth="0.15" />
                             </pattern>
                         </defs>
                         <rect width="100" height="100" fill="url(#ecgGrid)" />
-                        <polyline points={points} fill="none" className="ecg-waveform" vectorEffect="non-scaling-stroke" />
+                        <polyline
+                            points={points}
+                            fill="none"
+                            className="ecg-waveform"
+                            vectorEffect="non-scaling-stroke"
+                        />
                     </svg>
                 </div>
 
