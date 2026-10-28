@@ -221,7 +221,7 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
 
                     {/* ECG Analysis Component */}
                     <div className="doctor-card" style={{ marginTop: "24px" }}>
-                        <EcgAnalysis patient={activeCase} testData={testData} />
+                        <EcgAnalysis ecg={testData?.ecg || { heartRate: patientHr, status: "Test Data" }} />
                     </div>
                 </div>
             )}
