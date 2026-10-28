@@ -234,7 +234,7 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
                         <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "20px" }}>
                             Feature contribution breakdown demonstrating exact marginal impact of each biomarker on the final deep neural network decision.
                         </p>
-                        <ShapChart testData={testData} />
+                        <ShapChart features={testData?.explainability?.topFeatures || []} method={testData?.explainability?.method || "SHAP"} />
                     </div>
                 </div>
             )}
