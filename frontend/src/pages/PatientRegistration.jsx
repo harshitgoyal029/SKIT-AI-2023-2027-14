@@ -731,4 +731,4 @@ const PatientRegistration = () => {
     );
 };
 
-export default PatientRegistration;
+export default PatientRegistration;// CVD-XAI patient workflow integration update
