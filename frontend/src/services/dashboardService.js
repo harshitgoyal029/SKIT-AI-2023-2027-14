@@ -121,3 +121,28 @@ export const formatMetric = (value, unit = "") => {
 
     return `${value}${unit ? ` ${unit}` : ""}`;
 };
+
+/**
+ * Fetches live SHAP explainability feature attributions from the MongoDB backend.
+ * Falls back gracefully to sample data if backend endpoint is unavailable.
+ */
+export const fetchPatientExplainability = async (patientId) => {
+    try {
+        const response = await fetch(`/api/patients/${encodeURIComponent(patientId)}/explainability`);
+        if (response.ok) {
+            const data = await response.json();
+            return {
+                source: "DATABASE",
+                method: data.method || "SHAP",
+                status: "Live",
+                baseValue: data.base_value,
+                topFeatures: data.features || [],
+                waterfallPoints: data.waterfall_points || [],
+            };
+        }
+    } catch {
+        // Fallback to offline test dataset
+    }
+
+    return TEST_DASHBOARD_DATA.explainability;
+};
