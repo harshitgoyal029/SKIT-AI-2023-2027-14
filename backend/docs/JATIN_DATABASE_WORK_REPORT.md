@@ -34,9 +34,9 @@ According to **Form 2 (Roles & Responsibilities of Team Members)**, Jatin Khande
 6. **Sprint 3 (14/10/2026 – 26/10/2026): Help Organize Training**
    - *Form 2 Objective:* "Will work with Deepak to organize data properly for model training."
    - *Deliverable:* Built model training data extraction pipeline (`prepare_training_data.py`), multimodal cohort query helpers in `database.py`, schema & feature alignment verification tool (`verify_model_data_alignment.py`), and test suite (`test_training_data.py`).
-7. **Sprint 3 (27/10/2026 – 08/11/2026): SHAP Storage Setup**
+7. **Sprint 3 (27/10/2026 – 08/11/2026): SHAP Storage Setup & Live API Pipeline**
    - *Form 2 Objective:* "Will setup a place in database to store SHAP explanation result."
-   - *Deliverable:* Extended `PredictionResult` schema with granular SHAP waterfall and baseline values, created explanation persistence & global ranking helpers in `database.py`, added `seed_shap_explanations.py`, and authored dedicated test suite (`test_shap_storage.py` — bringing total suite to 49 passing unit tests).
+   - *Deliverable:* Extended `PredictionResult` schema with granular SHAP waterfall values, implemented live REST explainability endpoints (`/api/patients/{id}/explainability` and `/api/patients/explainability/global-importance`), connected frontend `dashboardService.js`, built `check_shap_pipeline.py`, and expanded unit test suite to 52 passing tests.
 
 ---
 

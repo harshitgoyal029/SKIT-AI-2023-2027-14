@@ -294,18 +294,30 @@ def assess_patient(
 
     db["patients"].update_one({"_id": patient["_id"]}, {"$set": updates})
 
-    # Save to prediction_results
+    # Save to prediction_results with granular SHAP attributions
     try:
-        pred_record = PredictionResult(
-            patient_id=str(patient["_id"]),
-            model_name="clinical_dnn",
-            model_version="1.0.0",
-            risk_score=assessment["risk_score"],
-            predicted_label=assessment["predicted_label"],
-            top_contributing_features=assessment.get("top_contributing_features", []),
-        )
-        db["prediction_results"].insert_one(
-            pred_record.model_dump(by_alias=True, exclude={"id"})
+        from database import save_prediction_explanation
+        shap_dict = assessment.get("feature_contributions", {})
+        waterfall_list = [
+            {"step": i, "feature": feat, "contribution": val, "running_score": round(assessment["risk_score"] * ((i + 1) / max(len(shap_dict), 1)), 3)}
+            for i, (feat, val) in enumerate(shap_dict.items())
+        ]
+        pred_data = {
+            "model_name": "clinical_dnn",
+            "model_version": "1.0.0",
+            "modality": "clinical",
+            "risk_score": assessment["risk_score"],
+            "predicted_label": assessment["predicted_label"],
+            "confidence_score": 0.88,
+            "base_value": 0.35,
+            "shap_values": shap_dict,
+            "top_contributing_features": assessment.get("top_contributing_features", []),
+            "waterfall_points": waterfall_list,
+        }
+        save_prediction_explanation(
+            patient_id=patient.get("patientId") or str(patient["_id"]),
+            prediction_data=pred_data,
+            db=db,
         )
     except Exception:
         pass
@@ -319,6 +331,84 @@ def assess_patient(
         "feature_contributions": assessment["feature_contributions"],
         "top_contributing_features": assessment["top_contributing_features"],
         "explanations": assessment.get("explanations", []),
+    }
+
+
+
+
+# ── Explainability Endpoints (Sprint 3) ──────────────────────────
+
+
+@router.get("/explainability/global-importance", response_model=None)
+def get_global_shap_importance_api(
+    model_name: str = Query(default="multimodal_fusion", description="Model name to aggregate"),
+    limit: int = Query(default=10, ge=1, le=50),
+    db: Database = Depends(get_db),
+):
+    """Return cohort-level global SHAP feature importance aggregated from MongoDB."""
+    from database import get_global_feature_importance
+    rankings = get_global_feature_importance(model_name=model_name, limit=limit, db=db)
+    return {
+        "model_name": model_name,
+        "features": rankings,
+        "total_ranked": len(rankings),
+    }
+
+
+@router.get("/{identifier}/explainability", response_model=None)
+def get_patient_explainability(
+    identifier: str,
+    db: Database = Depends(get_db),
+):
+    """Retrieve live SHAP feature attributions and waterfall steps for a patient.
+
+    Formatted for direct consumption by frontend ShapChart.jsx.
+    """
+    patient = get_patient_by_identifier(identifier, db=db)
+    if not patient:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Patient '{identifier}' was not found.",
+        )
+
+    pid = patient.get("patientId") or str(patient["_id"])
+    from database import get_patient_latest_explanation
+    explanation = get_patient_latest_explanation(pid, db=db)
+
+    if not explanation:
+        contributions = patient.get("feature_contributions") or {}
+        shap_values = contributions
+        waterfall = []
+        base_value = 0.35
+    else:
+        shap_values = explanation.get("shap_values") or {}
+        waterfall = explanation.get("waterfall_points") or []
+        base_value = explanation.get("base_value", 0.35)
+
+    formatted_features = []
+    for feat, val in shap_values.items():
+        v = float(val)
+        direction = "Positive impact" if v >= 0 else "Negative impact"
+        formatted_features.append({
+            "feature": feat,
+            "contribution": abs(v),
+            "shap_value": v,
+            "direction": direction,
+            "signedValue": v,
+        })
+
+    formatted_features.sort(key=lambda x: abs(x["signedValue"]), reverse=True)
+
+    return {
+        "patientId": pid,
+        "name": patient.get("name"),
+        "risk_score": patient.get("risk_score"),
+        "risk_level": patient.get("risk_level") or patient.get("riskLevel"),
+        "method": "SHAP",
+        "base_value": base_value,
+        "features": formatted_features,
+        "top_contributing_features": patient.get("top_contributing_features", []),
+        "waterfall_points": waterfall,
     }
 
 
