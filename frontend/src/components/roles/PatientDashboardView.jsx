@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getApiUrl } from "../../services/api";
 import CvdXaiIntroSlider from "../CvdXaiIntroSlider";
@@ -25,7 +25,7 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
     const token = localStorage.getItem("cvd_xai_access_token") || localStorage.getItem("cvd_token");
 
     // Fetch real patient data from MongoDB
-    const fetchPatientData = async () => {
+    const fetchPatientData = useCallback(async () => {
         if (!token) {
             setLoadingData(false);
             return;
@@ -58,11 +58,11 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
         } finally {
             setLoadingData(false);
         }
-    };
+    }, [token]);
 
     useEffect(() => {
         fetchPatientData();
-    }, [token]);
+    }, [fetchPatientData]);
 
     // Latest real records from MongoDB
     const latestClinical = clinicalRecords.length > 0 ? clinicalRecords[0] : null;

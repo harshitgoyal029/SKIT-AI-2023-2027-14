@@ -334,6 +334,7 @@ const PatientRegistration = () => {
                 "cvd_xai_patient",
                 JSON.stringify(data)
             );
+            window.dispatchEvent(new Event("cvd-xai:patient-selected"));
 
             navigate("/dashboard");
         } catch (requestError) {

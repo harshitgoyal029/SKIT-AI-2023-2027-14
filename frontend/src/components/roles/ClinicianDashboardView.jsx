@@ -1,88 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { getApiUrl } from "../../services/api";
-
-const SAMPLE_COHORT = [
-    {
-        patientId: "CVD-101",
-        name: "Eleanor Vance",
-        age: 62,
-        gender: "Female",
-        bloodPressure: "145/92",
-        cholesterol: 238,
-        heartRate: 82,
-        riskLevel: "High Risk",
-        registeredAt: "Today, 10:30 AM",
-    },
-    {
-        patientId: "CVD-102",
-        name: "Marcus Brody",
-        age: 48,
-        gender: "Male",
-        bloodPressure: "124/80",
-        cholesterol: 188,
-        heartRate: 71,
-        riskLevel: "Low Risk",
-        registeredAt: "Today, 09:15 AM",
-    },
-    {
-        patientId: "CVD-103",
-        name: "Sophia Martinez",
-        age: 55,
-        gender: "Female",
-        bloodPressure: "136/86",
-        cholesterol: 210,
-        heartRate: 76,
-        riskLevel: "Moderate Risk",
-        registeredAt: "Yesterday",
-    },
-    {
-        patientId: "CVD-104",
-        name: "Arthur Pendelton",
-        age: 69,
-        gender: "Male",
-        bloodPressure: "152/96",
-        cholesterol: 245,
-        heartRate: 88,
-        riskLevel: "High Risk",
-        registeredAt: "Yesterday",
-    },
-    {
-        patientId: "CVD-105",
-        name: "Claire Dunphy",
-        age: 42,
-        gender: "Female",
-        bloodPressure: "118/78",
-        cholesterol: 172,
-        heartRate: 68,
-        riskLevel: "Low Risk",
-        registeredAt: "2 days ago",
-    },
-];
+import { Link } from "react-router-dom";
+import { apiRequest } from "../../services/api";
 
 const ClinicianDashboardView = ({ currentUser }) => {
-    const navigate = useNavigate();
-    const [patients, setPatients] = useState(SAMPLE_COHORT);
-    const [loading, setLoading] = useState(false);
+    const [patients, setPatients] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState("");
+    const [notice, setNotice] = useState("");
     const [filterRisk, setFilterRisk] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
 
-    const clinicianName = currentUser?.name || "Dr. Alex Mercer, Clinician";
+    const clinicianName = currentUser?.full_name || currentUser?.name || "Clinical team";
 
     // Attempt to fetch live patients from backend
     useEffect(() => {
         const fetchPatients = async () => {
             setLoading(true);
+            setLoadError("");
             try {
-                const res = await fetch(getApiUrl("/api/patients?limit=50"));
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.patients && data.patients.length > 0) {
-                        setPatients(data.patients);
-                    }
-                }
-            } catch (e) {
-                // Keep sample cohort on network error or offline backend
+                const data = await apiRequest("/api/patients?limit=50");
+                setPatients(Array.isArray(data?.patients) ? data.patients : []);
+            } catch (requestError) {
+                setLoadError(requestError.message || "Patient records could not be loaded.");
             } finally {
                 setLoading(false);
             }
@@ -93,14 +32,14 @@ const ClinicianDashboardView = ({ currentUser }) => {
 
     const handleSelectPatient = (p) => {
         sessionStorage.setItem("cvd_xai_patient", JSON.stringify(p));
-        alert(`Loaded patient ${p.name || p.patientId} into current session.`);
-        window.dispatchEvent(new Event("storage"));
+        setNotice(`${p.name || p.patientId || "Patient record"} is loaded for this session.`);
+        window.dispatchEvent(new Event("cvd-xai:patient-selected"));
     };
 
     const filteredPatients = patients.filter((p) => {
         const matchesSearch =
             (p.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (p.patientId || "").toLowerCase().includes(searchQuery.toLowerCase());
+            (p.patientId || p.patient_id || "").toLowerCase().includes(searchQuery.toLowerCase());
 
         const risk = p.riskLevel || p.risk_level || "";
         const matchesRisk =
@@ -113,6 +52,9 @@ const ClinicianDashboardView = ({ currentUser }) => {
     const highRiskCount = patients.filter((p) =>
         (p.riskLevel || p.risk_level || "").toLowerCase().includes("high")
     ).length;
+    const assessedCount = patients.filter((p) => p.risk_score !== null && p.risk_score !== undefined).length;
+    const completeCount = patients.filter((p) => p.age && (p.gender || p.sex) && (p.bloodPressure || p.blood_pressure) && p.cholesterol != null).length;
+    const completeness = patients.length ? Math.round((completeCount / patients.length) * 100) : null;
 
     return (
         <div className="clinician-dashboard-container">
@@ -123,7 +65,7 @@ const ClinicianDashboardView = ({ currentUser }) => {
                     <div>
                         <div className="clinician-badge-row">
                             <span className="clinician-portal-tag">Clinical Intake & Lab Management</span>
-                            <span className="clinician-status-tag">● Lab Services Active</span>
+                            <span className="clinician-status-tag">● Clinical intake</span>
                         </div>
                         <h2>{clinicianName}</h2>
                         <p className="clinician-hero-sub">
@@ -132,20 +74,10 @@ const ClinicianDashboardView = ({ currentUser }) => {
                     </div>
                 </div>
 
-                <div className="clinician-hero-actions" style={{ display: "flex", gap: "10px" }}>
+                <div className="clinician-hero-actions">
                     <Link
                         to="/data-upload"
                         className="clinician-action-btn"
-                        style={{
-                            background: "#ffffff",
-                            border: "1.5px solid #ddd6fe",
-                            color: "#7c3aed",
-                            textDecoration: "none",
-                            padding: "10px 18px",
-                            borderRadius: "9px",
-                            fontSize: "13px",
-                            fontWeight: 600,
-                        }}
                     >
                         📁 Upload Clinical / ECG
                     </Link>
@@ -163,7 +95,7 @@ const ClinicianDashboardView = ({ currentUser }) => {
                         <span className="metric-big">{patients.length}</span>
                         <span className="metric-delta pos">Active</span>
                     </div>
-                    <small>Monitored cohort in clinic</small>
+                        <small>Records returned by the patient service</small>
                 </div>
 
                 <div className="cohort-metric-card">
@@ -172,27 +104,29 @@ const ClinicianDashboardView = ({ currentUser }) => {
                         <span className="metric-big text-warn">{highRiskCount}</span>
                         <span className="metric-delta warn">Priority</span>
                     </div>
-                    <small>Urgent cardiology review needed</small>
+                        <small>Based on available risk labels</small>
                 </div>
 
                 <div className="cohort-metric-card">
                     <span className="metric-title">DATA COMPLETENESS SCORE</span>
                     <div className="metric-val-row">
-                        <span className="metric-big">99.4%</span>
-                        <span className="metric-delta pos">High Quality</span>
+                        <span className="metric-big">{completeness === null ? "--" : `${completeness}%`}</span>
+                        <span className="metric-delta">Vitals on file</span>
                     </div>
-                    <small>All required vitals & ECG logged</small>
+                    <small>Records with age, gender, blood pressure and cholesterol</small>
                 </div>
 
                 <div className="cohort-metric-card">
-                    <span className="metric-title">AVG. DNN PREDICTION TIME</span>
+                    <span className="metric-title">ASSESSED RECORDS</span>
                     <div className="metric-val-row">
-                        <span className="metric-big">1.2s</span>
-                        <span className="metric-delta pos">Realtime</span>
+                        <span className="metric-big">{assessedCount}</span>
+                        <span className="metric-delta">of {patients.length}</span>
                     </div>
-                    <small>Instant AI inference turnaround</small>
+                    <small>Records with a stored model risk score</small>
                 </div>
             </div>
+
+            {notice && <div className="form-success" role="status">{notice}</div>}
 
             {/* Patient Registry Table & Controls */}
             <div className="clinician-registry-card">
@@ -238,30 +172,38 @@ const ClinicianDashboardView = ({ currentUser }) => {
                             </tr>
                         </thead>
                         <tbody>
+                            {loading && <tr><td colSpan="7">Loading patient records…</td></tr>}
+                            {!loading && loadError && <tr><td colSpan="7" role="alert">{loadError}</td></tr>}
+                            {!loading && !loadError && filteredPatients.length === 0 && (
+                                <tr><td colSpan="7">{patients.length ? "No patients match these filters." : "No patient records are available yet. Register a patient to get started."}</td></tr>
+                            )}
                             {filteredPatients.map((p, idx) => {
-                                const riskStr = p.riskLevel || p.risk_level || "Pending";
+                                const riskStr = p.riskLevel || p.risk_level || "Pending assessment";
                                 const isHigh = riskStr.toLowerCase().includes("high");
                                 const isMod = riskStr.toLowerCase().includes("mod");
+                                const isPending = riskStr.toLowerCase().includes("pending");
+                                const patientId = p.patientId || p.patient_id || p.id || p._id;
+                                const bloodPressure = p.bloodPressure || p.blood_pressure;
 
                                 return (
-                                    <tr key={p.patientId || p._id || idx}>
+                                    <tr key={patientId || idx}>
                                         <td>
                                             <span className="patient-id-badge">
-                                                {p.patientId || "CVD-XXX"}
+                                                {patientId || "—"}
                                             </span>
                                         </td>
                                         <td>
                                             <strong>{p.name || "Unnamed"}</strong>
                                         </td>
                                         <td>
-                                            {p.age || "--"} yrs • {p.gender || "--"}
+                                            {p.age || "—"} yrs • {p.gender || p.sex || "—"}
                                         </td>
-                                        <td>{p.bloodPressure || "--"} mmHg</td>
-                                        <td>{p.cholesterol ? `${p.cholesterol} mg/dL` : "--"}</td>
+                                        <td>{bloodPressure ? `${bloodPressure} mmHg` : "—"}</td>
+                                        <td>{p.cholesterol != null ? `${p.cholesterol} mg/dL` : "—"}</td>
                                         <td>
                                             <span
                                                 className={`risk-pill ${
-                                                    isHigh ? "high" : isMod ? "moderate" : "low"
+                                                    isHigh ? "high" : isMod ? "moderate" : isPending ? "pending" : "low"
                                                 }`}
                                             >
                                                 {riskStr}
@@ -287,25 +229,16 @@ const ClinicianDashboardView = ({ currentUser }) => {
             {/* Clinical Intake Quick Checklist */}
             <div className="clinician-guidance-grid">
                 <div className="guidance-card">
-                    <h4>🧪 Biomarker Entry Standard</h4>
-                    <p>
-                        Verify serum cholesterol and fasting glucose within 12 hours of collection.
-                        Ensure blood pressure is measured after 5 minutes of seated rest.
-                    </p>
+                    <h4>🧪 Clinical data review</h4>
+                    <p>Confirm source, units and collection context for every value before using it in an assessment.</p>
                 </div>
                 <div className="guidance-card">
                     <h4>📈 12-Lead ECG Quality Assurance</h4>
-                    <p>
-                        Check electrode contact impedance before recording. Reject waveforms with baseline
-                        wander exceeding 0.5 mV.
-                    </p>
+                    <p>Review recording quality and confirm the lead configuration and sampling details before interpretation.</p>
                 </div>
                 <div className="guidance-card">
                     <h4>🛡 Cohort Privacy Compliance</h4>
-                    <p>
-                        All uploaded clinical records are hashed and stored with institutional patient identifiers
-                        in compliance with HIPAA guidelines.
-                    </p>
+                    <p>Follow your organization’s consent, access-control and data-retention procedures when handling records.</p>
                 </div>
             </div>
         </div>
