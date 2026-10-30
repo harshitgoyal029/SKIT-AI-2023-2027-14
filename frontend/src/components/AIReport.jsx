@@ -7,8 +7,13 @@ const AiReport = ({ patient, testData }) => {
         const metrics = testData?.clinicalMetrics || {};
         const features = testData?.explainability?.topFeatures || [];
         const ecg = testData?.ecg || {};
-        const risk = patient?.riskLevel || assessment.prediction || "Pending";
-        const score = assessment.riskScore ?? "--";
+        const risk = patient?.riskLevel || patient?.risk_level || assessment.prediction || "Pending assessment";
+        const rawScore = assessment.riskScore !== undefined && assessment.riskScore !== null
+            ? Number(assessment.riskScore)
+            : Number(patient?.risk_score) * 100;
+        const score = Number.isFinite(rawScore)
+            ? `${Math.round(rawScore)}%`
+            : "—";
         const topFeature = [...features].sort(
             (a, b) => Math.abs(Number(b.contribution) || 0) - Math.abs(Number(a.contribution) || 0)
         )[0];
@@ -16,16 +21,16 @@ const AiReport = ({ patient, testData }) => {
         return {
             risk,
             score,
-            model: assessment.model || "Cardiovascular Risk Model",
-            topFeature: topFeature?.feature || "No feature available",
-            topFeatureDirection: topFeature?.direction || "Pending",
-            heartRate: metrics.averageHeartRate ?? ecg.heartRate ?? "--",
-            cholesterol: metrics.averageCholesterol ?? "--",
+            model: assessment.model || patient?.model_name || "Model name unavailable",
+            topFeature: topFeature?.feature || "No stored feature attribution available",
+            topFeatureDirection: topFeature?.direction || "",
+            heartRate: metrics.averageHeartRate ?? patient?.heartRate ?? patient?.heart_rate ?? "—",
+            cholesterol: metrics.averageCholesterol ?? patient?.cholesterol ?? "—",
             bloodPressure:
                 metrics.averageSystolicBP && metrics.averageDiastolicBP
                     ? `${metrics.averageSystolicBP}/${metrics.averageDiastolicBP}`
-                    : "--",
-            rhythm: ecg.rhythm || "--",
+                    : patient?.bloodPressure || patient?.blood_pressure || "—",
+            rhythm: ecg.rhythm || "—",
         };
     }, [patient, testData]);
 
@@ -46,11 +51,11 @@ const AiReport = ({ patient, testData }) => {
                 <div className="ai-report-header">
                     <div>
                         <span>Patient</span>
-                        <strong>{patient?.name || testData?.patient?.patientName || "Sample Patient"}</strong>
+                        <strong>{patient?.name || testData?.patient?.patientName || "No patient selected"}</strong>
                     </div>
                     <div>
                         <span>Patient ID</span>
-                        <strong>{patient?.patientId || testData?.patient?.patientId || "TEST-001"}</strong>
+                        <strong>{patient?.patientId || patient?.patient_id || testData?.patient?.patientId || "—"}</strong>
                     </div>
                     <div>
                         <span>Assessment</span>
@@ -66,28 +71,27 @@ const AiReport = ({ patient, testData }) => {
                     <section className="ai-report-block">
                         <h3>Clinical Summary</h3>
                         <p>
-                            The current test assessment reports a <strong>{report.risk}</strong> result
-                            using the {report.model}. Available dashboard metrics include a heart rate
-                            of <strong>{report.heartRate} BPM</strong>, cholesterol of
-                            <strong> {report.cholesterol} mg/dL</strong>, and blood pressure of
-                            <strong> {report.bloodPressure} mmHg</strong>.
+                            {report.score !== "—"
+                                ? <>The stored model result is <strong>{report.risk}</strong> ({report.score}) from the {report.model}. Review it alongside the source measurements: heart rate <strong>{report.heartRate} BPM</strong>, cholesterol <strong>{report.cholesterol} mg/dL</strong>, and blood pressure <strong>{report.bloodPressure} mmHg</strong>.</>
+                                : "No model assessment is stored for this patient. Complete an assessment and verify the source data before generating a clinical summary."}
                         </p>
                     </section>
 
                     <section className="ai-report-block">
                         <h3>Model Explanation</h3>
                         <p>
-                            The strongest available contributing feature is
-                            <strong> {report.topFeature}</strong>, with a {report.topFeatureDirection}
-                            impact in the current test explanation.
+                            {report.topFeatureDirection
+                                ? <>The strongest available stored attribution is <strong>{report.topFeature}</strong>, with a {report.topFeatureDirection} impact.</>
+                                : report.topFeature}
                         </p>
                     </section>
 
                     <section className="ai-report-block">
                         <h3>ECG Summary</h3>
                         <p>
-                            ECG workflow data reports a rhythm of <strong>{report.rhythm}</strong>.
-                            The ECG module is currently using test data until live ECG input is connected.
+                            {report.rhythm !== "—"
+                                ? <>The attached ECG result reports a rhythm of <strong>{report.rhythm}</strong>.</>
+                                : "No ECG result is attached to this assessment."}
                         </p>
                     </section>
 
@@ -100,7 +104,7 @@ const AiReport = ({ patient, testData }) => {
                 </div>
 
                 <div className="ai-report-footer">
-                    <span>Report status: Test Workflow</span>
+                    <span>Review source data and confirm the model result before clinical use.</span>
                     <button type="button" className="secondary-btn" onClick={() => printClinicalReport()}>
                         Print Report
                     </button>

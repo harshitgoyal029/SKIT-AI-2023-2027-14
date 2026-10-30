@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
-import { getDashboardTestData } from "../services/dashboardService";
 import { getStoredUser } from "../services/authService";
 
 import PatientDashboardView from "../components/roles/PatientDashboardView";
@@ -12,10 +11,6 @@ const Dashboard = ({ activeView }) => {
     const location = useLocation();
     const currentView = activeView || (location.pathname === "/prediction-results" ? "predictions" : "dashboard");
     const [patient, setPatient] = useState(null);
-    const [lastUpdated, setLastUpdated] = useState(null);
-    const [testData, setTestData] = useState(null);
-    const [testDataLoading, setTestDataLoading] = useState(false);
-    const [testDataError, setTestDataError] = useState("");
 
     // Strictly enforce role from authenticated session (Point 3)
     const getAuthenticatedUser = () => {
@@ -51,24 +46,7 @@ const Dashboard = ({ activeView }) => {
         return () => window.removeEventListener("storage", syncAuth);
     }, []);
 
-    // Load sample / test data for doctor/clinician diagnostic components
-    const loadTestData = async (currentPatient = null) => {
-        setTestDataLoading(true);
-        setTestDataError("");
-
-        try {
-            const data = await getDashboardTestData(currentPatient);
-            setTestData(data);
-            setLastUpdated(new Date());
-        } catch (error) {
-            console.error("Unable to load dashboard test data:", error);
-            setTestDataError("Dashboard test data could not be loaded.");
-        } finally {
-            setTestDataLoading(false);
-        }
-    };
-
-    // Load patient from session storage
+    // Load the selected patient from this browser session.
     useEffect(() => {
         const loadPatient = () => {
             const savedPatient = sessionStorage.getItem("cvd_xai_patient");
@@ -76,30 +54,22 @@ const Dashboard = ({ activeView }) => {
                 try {
                     const parsedPatient = JSON.parse(savedPatient);
                     setPatient(parsedPatient);
-                    setLastUpdated(new Date());
-                    loadTestData(parsedPatient);
                 } catch (error) {
                     setPatient(null);
-                    loadTestData(null);
                 }
             } else {
                 setPatient(null);
-                loadTestData(null);
             }
         };
 
         loadPatient();
+        window.addEventListener("cvd-xai:patient-selected", loadPatient);
         window.addEventListener("storage", loadPatient);
-        return () => window.removeEventListener("storage", loadPatient);
+        return () => {
+            window.removeEventListener("cvd-xai:patient-selected", loadPatient);
+            window.removeEventListener("storage", loadPatient);
+        };
     }, []);
-
-    const userDisplayName = currentUser?.full_name || currentUser?.name || (
-        activeRole === "patient"
-            ? "Jane Doe (Patient)"
-            : activeRole === "doctor"
-            ? "Dr. Sarah Johnson, MD"
-            : "Dr. Alex Mercer, Clinician"
-    );
 
     return (
         <div className="page">
@@ -115,7 +85,6 @@ const Dashboard = ({ activeView }) => {
             {activeRole === "doctor" && (
                 <DoctorDashboardView
                     patient={patient}
-                    testData={testData}
                     currentUser={currentUser}
                 />
             )}

@@ -1,62 +1,119 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ShapChart from "../ShapChart";
 import EcgAnalysis from "../EcgAnalysis";
 import AIReport from "../AIReport";
-import { getApiUrl } from "../../services/api";
+import { apiRequest } from "../../services/api";
 
-const DoctorDashboardView = ({ patient, testData, currentUser }) => {
+const DoctorDashboardView = ({ patient, currentUser }) => {
     const [doctorTab, setDoctorTab] = useState("diagnostic");
 
     // Real patients loaded from MongoDB (Point 4)
     const [realPatients, setRealPatients] = useState([]);
     const [selectedPatientId, setSelectedPatientId] = useState("");
     const [loadingPatients, setLoadingPatients] = useState(false);
+    const [patientError, setPatientError] = useState("");
+    const [explainability, setExplainability] = useState(null);
+    const [assessmentLoading, setAssessmentLoading] = useState(false);
+    const [assessmentError, setAssessmentError] = useState("");
+    const [explanationRefresh, setExplanationRefresh] = useState(0);
+    const [assessedCase, setAssessedCase] = useState(null);
 
     useEffect(() => {
+        let active = true;
         const fetchCohort = async () => {
             setLoadingPatients(true);
             try {
-                const res = await fetch(getApiUrl("/api/patients?limit=50"));
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.patients && data.patients.length > 0) {
-                        setRealPatients(data.patients);
-                        setSelectedPatientId(data.patients[0]._id || data.patients[0].id || "");
-                    }
-                }
-            } catch (err) {
-                console.error("Error loading patient cases in Doctor Suite:", err);
+                const data = await apiRequest("/api/patients?limit=50");
+                if (!active) return;
+                const patients = Array.isArray(data?.patients) ? data.patients : [];
+                setRealPatients(patients);
+                setSelectedPatientId((current) => current || patients[0]?.patientId || patients[0]?._id || patients[0]?.id || "");
+            } catch (requestError) {
+                if (active) setPatientError(requestError.message || "Patient cases could not be loaded.");
             } finally {
-                setLoadingPatients(false);
+                if (active) setLoadingPatients(false);
             }
         };
 
         fetchCohort();
+        return () => { active = false; };
     }, []);
+
+    useEffect(() => {
+        const patientId = patient?.patientId || patient?.patient_id || patient?._id || patient?.id;
+        if (patientId) setSelectedPatientId((current) => current || patientId);
+    }, [patient]);
 
     // Active patient resolution
     const activeCase = realPatients.find(
-        (p) => (p._id || p.id) === selectedPatientId
-    ) || patient;
+        (p) => (p.patientId || p.patient_id || p._id || p.id) === selectedPatientId
+    ) || (assessedCase && (assessedCase.patientId || assessedCase.patient_id || assessedCase._id || assessedCase.id) === selectedPatientId
+        ? assessedCase
+        : patient);
 
-    const doctorName = currentUser?.full_name || currentUser?.name || "Dr. Sarah Johnson, MD";
-    const patientName = activeCase?.name || activeCase?.patientName || "Jane Doe";
-    const patientAge = activeCase?.age || 54;
-    const patientGender = activeCase?.gender || "Female";
-    const patientBp = activeCase?.bloodPressure || "130/80";
-    const patientChol = activeCase?.cholesterol || 210;
-    const patientHr = activeCase?.heartRate || 75;
+    const activePatientId = activeCase?.patientId || activeCase?.patient_id || activeCase?._id || activeCase?.id;
+
+    useEffect(() => {
+        let active = true;
+        setExplainability(null);
+        if (!activePatientId) return () => { active = false; };
+        apiRequest(`/api/patients/${encodeURIComponent(activePatientId)}/explainability`)
+            .then((data) => { if (active) setExplainability(data); })
+            .catch(() => { if (active) setExplainability(null); });
+        return () => { active = false; };
+    }, [activePatientId, explanationRefresh]);
+
+    const handleAssessment = async () => {
+        if (!activePatientId) return;
+        setAssessmentLoading(true);
+        setAssessmentError("");
+        try {
+            const result = await apiRequest(`/api/patients/${encodeURIComponent(activePatientId)}/assess`, { method: "POST" });
+            setAssessedCase({ ...activeCase, ...result, riskLevel: result.risk_level });
+            setRealPatients((current) => current.map((record) =>
+                (record.patientId || record.patient_id || record._id || record.id) === activePatientId
+                    ? { ...record, ...result, riskLevel: result.risk_level }
+                    : record
+            ));
+            setExplanationRefresh((version) => version + 1);
+        } catch (requestError) {
+            setAssessmentError(requestError.message || "The model assessment could not be completed.");
+        } finally {
+            setAssessmentLoading(false);
+        }
+    };
+
+    const doctorName = currentUser?.full_name || currentUser?.name || "Clinical team";
+    const patientName = activeCase?.name || activeCase?.patientName || "No patient selected";
+    const patientAge = activeCase?.age ?? "—";
+    const patientGender = activeCase?.gender || activeCase?.sex || "—";
+    const patientBp = activeCase?.bloodPressure || activeCase?.blood_pressure || "—";
+    const patientChol = activeCase?.cholesterol ?? "—";
+    const patientHr = activeCase?.heartRate ?? activeCase?.heart_rate ?? "—";
 
     // Real DNN risk score (Point 8)
     const riskScore = activeCase?.risk_score !== undefined && activeCase?.risk_score !== null
         ? Math.round(activeCase.risk_score * 100)
-        : (testData?.assessment?.riskScore || 50);
+        : null;
+    const hasRiskScore = riskScore !== null;
 
-    const riskLevel = activeCase?.riskLevel || activeCase?.risk_level || (
-        riskScore >= 60 ? "High Risk" : riskScore >= 30 ? "Moderate Risk" : "Low Risk"
-    );
-
-    const confidence = 88;
+    const riskLevel = activeCase?.riskLevel || activeCase?.risk_level || "Pending assessment";
+    const riskClass = riskLevel.toLowerCase().includes("high") ? "high"
+        : riskLevel.toLowerCase().includes("moderate") ? "moderate"
+            : riskLevel.toLowerCase().includes("low") ? "optimal" : "pending";
+    const dashboardData = useMemo(() => ({
+        assessment: {
+            prediction: riskLevel,
+            riskScore: riskScore ?? "--",
+            model: activeCase?.model_name || "Cardiovascular Risk Model",
+        },
+        explainability: explainability ? {
+            method: explainability.method || "SHAP",
+            status: "Live",
+            topFeatures: explainability.features || [],
+        } : { method: "SHAP", status: "Unavailable", topFeatures: [] },
+        ecg: null,
+    }), [activeCase?.model_name, explainability, riskLevel, riskScore]);
 
     return (
         <div className="doctor-dashboard-container">
@@ -67,7 +124,7 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
                     <div>
                         <div className="doctor-badge-row">
                             <span className="doctor-portal-tag">Cardiology Decision Support</span>
-                            <span className="doctor-license-tag">Board Certified Cardiologist</span>
+            <span className="doctor-license-tag">Clinical decision support</span>
                         </div>
                         <h2>{doctorName}</h2>
                         <p className="doctor-hero-sub">
@@ -83,56 +140,32 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
                 </div>
             </div>
 
-            {/* Real Patient Case Selector from MongoDB (Point 4) */}
-            {realPatients.length > 0 && (
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        background: "#ffffff",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "12px",
-                        padding: "12px 20px",
-                        gap: "16px",
-                        flexWrap: "wrap",
-                    }}
-                >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>
-                            📁 Select Live Case (MongoDB):
-                        </span>
+            <div className="doctor-case-selector">
+                {loadingPatients ? <span role="status">Loading patient cases…</span> : null}
+                {patientError ? <span role="alert">{patientError}</span> : null}
+                {!loadingPatients && !patientError && realPatients.length === 0 ? <span>No patient records are available yet.</span> : null}
+                {realPatients.length > 0 && (
+                    <>
+                    <label className="doctor-case-selector-label" htmlFor="doctor-patient-case">Select patient case</label>
                         <select
+                            id="doctor-patient-case"
                             value={selectedPatientId}
                             onChange={(e) => setSelectedPatientId(e.target.value)}
-                            style={{
-                                padding: "8px 14px",
-                                borderRadius: "8px",
-                                border: "1.5px solid #cbd5e1",
-                                fontSize: "13px",
-                                fontWeight: 600,
-                                color: "#0f172a",
-                                background: "#f8fafc",
-                                cursor: "pointer",
-                            }}
                         >
                             {realPatients.map((p) => {
-                                const pId = p._id || p.id;
+                                const pId = p.patientId || p.patient_id || p._id || p.id;
                                 const pRisk = p.riskLevel || p.risk_level || "Pending";
                                 return (
                                     <option key={pId} value={pId}>
-                                        {p.name || p.patientId} ({p.age}y, {p.gender}) — {pRisk} {p.risk_score ? `(${Math.round(p.risk_score * 100)}%)` : ""}
+                                        {p.name || p.patientId || pId} ({p.age ?? "—"}y, {p.gender || p.sex || "—"}) — {pRisk} {p.risk_score != null ? `(${Math.round(p.risk_score * 100)}%)` : ""}
                                     </option>
                                 );
                             })}
                         </select>
-                    </div>
-
-                    <div style={{ fontSize: "12px", color: "#64748b" }}>
-                        Loaded <strong>{realPatients.length}</strong> active patient cases from MongoDB
-                    </div>
-                </div>
-            )}
+                        <span>{realPatients.length} patient case{realPatients.length === 1 ? "" : "s"}</span>
+                    </>
+                )}
+            </div>
 
             {/* Doctor Navigation Subtabs */}
             <div className="doctor-subtabs-bar">
@@ -168,17 +201,24 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
                             <span className="card-kicker">DNN PREDICTION ENGINE</span>
                             <h3>CVD Risk Stratification</h3>
                             <div className="gauge-display">
-                                <div className="gauge-number">{riskScore}%</div>
+                                <div className="gauge-number">{hasRiskScore ? `${riskScore}%` : "—"}</div>
                                 <div className="gauge-meta">
-                                    <span className={`risk-level-badge ${riskScore >= 60 ? "high" : riskScore >= 30 ? "moderate" : "optimal"}`}>
+                                    <span className={`risk-level-badge ${riskClass}`}>
                                         ● {riskLevel}
                                     </span>
-                                    <small>Model Confidence: {confidence}%</small>
+                                    <small>Model: {activeCase?.model_name || "not recorded"}</small>
                                 </div>
                             </div>
+                            {activeCase && (
+                                <button type="button" className="secondary-btn doctor-assess-btn" onClick={handleAssessment} disabled={assessmentLoading}>
+                                    {assessmentLoading ? "Running assessment…" : "Run model assessment"}
+                                </button>
+                            )}
+                            {assessmentError && <p className="form-error" role="alert">{assessmentError}</p>}
                             <p className="gauge-explanation">
-                                Deep neural network estimates an elevated 10-year major adverse cardiovascular event
-                                (MACE) risk driven by vascular hypertension and lipid markers.
+                                {hasRiskScore
+                                    ? "Risk score from the stored patient assessment. Review source data and model details before clinical use."
+                                    : "No model assessment is available for this patient yet."}
                             </p>
                         </div>
 
@@ -189,31 +229,21 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
                                 <div className="biomarker-item">
                                     <span className="bio-name">Systolic / Diastolic BP</span>
                                     <strong>{patientBp} mmHg</strong>
-                                    <span className={`bio-flag ${parseInt(patientBp) > 130 ? "warn" : "normal"}`}>
-                                        {parseInt(patientBp) > 130 ? "Elevated" : "Normal"}
-                                    </span>
                                 </div>
 
                                 <div className="biomarker-item">
                                     <span className="bio-name">Total Cholesterol</span>
                                     <strong>{patientChol} mg/dL</strong>
-                                    <span className={`bio-flag ${patientChol > 200 ? "warn" : "normal"}`}>
-                                        {patientChol > 200 ? "High" : "Optimal"}
-                                    </span>
                                 </div>
 
                                 <div className="biomarker-item">
                                     <span className="bio-name">Resting Heart Rate</span>
                                     <strong>{patientHr} BPM</strong>
-                                    <span className="bio-flag normal">Stable</span>
                                 </div>
 
                                 <div className="biomarker-item">
                                     <span className="bio-name">Diabetes History</span>
-                                    <strong>{activeCase?.diabetes || "No"}</strong>
-                                    <span className={`bio-flag ${activeCase?.diabetes === "Yes" ? "warn" : "normal"}`}>
-                                        {activeCase?.diabetes === "Yes" ? "Flagged" : "Normal"}
-                                    </span>
+                                    <strong>{activeCase?.diabetes ?? "—"}</strong>
                                 </div>
                             </div>
                         </div>
@@ -221,7 +251,7 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
 
                     {/* ECG Analysis Component */}
                     <div className="doctor-card" style={{ marginTop: "24px" }}>
-                        <EcgAnalysis ecg={testData?.ecg || { heartRate: patientHr, status: "Test Data" }} />
+                        <EcgAnalysis ecg={dashboardData.ecg || { status: "No ECG data" }} />
                     </div>
                 </div>
             )}
@@ -231,10 +261,10 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
                 <div className="doctor-tab-content">
                     <div className="doctor-card">
                         <h3>SHAP (SHapley Additive exPlanations) Diagnostic Attribution</h3>
-                        <p style={{ color: "#64748b", fontSize: "14px", marginBottom: "20px" }}>
-                            Feature contribution breakdown demonstrating exact marginal impact of each biomarker on the final deep neural network decision.
+                        <p className="doctor-explainability-intro">
+                            Stored feature attributions for the selected patient assessment, when available.
                         </p>
-                        <ShapChart features={testData?.explainability?.topFeatures || []} method={testData?.explainability?.method || "SHAP"} />
+                        <ShapChart features={dashboardData.explainability.topFeatures} method={dashboardData.explainability.method} />
                     </div>
                 </div>
             )}
@@ -243,7 +273,7 @@ const DoctorDashboardView = ({ patient, testData, currentUser }) => {
             {doctorTab === "report" && (
                 <div className="doctor-tab-content">
                     <div className="doctor-card">
-                        <AIReport patient={activeCase} testData={testData} />
+                        <AIReport patient={activeCase} testData={dashboardData} />
                     </div>
                 </div>
             )}
