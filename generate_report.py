@@ -309,8 +309,12 @@ def generate_pdf(interval="weekly"):
                     ""
                 ])
             
-            num_rows = len(log_table_data)
-            log_table = Table(log_table_data, colWidths=[65, 50, 335, 90])
+            log_table = Table(
+                log_table_data,
+                colWidths=[65, 50, 335, 90],
+                repeatRows=1,
+                splitByRow=1
+            )
             
             t_style = [
                 ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#475569")),
@@ -323,15 +327,14 @@ def generate_pdf(interval="weekly"):
                 ('TOPPADDING', (0, 0), (-1, -1), 2.5),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
                 ('ROWBACKGROUNDS', (0, 1), (2, -1), [colors.white, colors.HexColor("#F8FAFC")]),
-                ('SPAN', (3, 1), (3, num_rows - 1)),              # Vertically merge mentor marks column
-                ('VALIGN', (3, 1), (3, num_rows - 1), 'MIDDLE'),     # Vertically center the marks line
-                ('BACKGROUND', (3, 1), (3, num_rows - 1), colors.HexColor("#FEF3C7")), # Accent for marks area
+                ('BACKGROUND', (3, 1), (3, -1), colors.HexColor("#FEF3C7")),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ]
             
             log_table.setStyle(TableStyle(t_style))
-            student_section.append(log_table)
-            student_section.append(Spacer(1, 5))
-            story.append(KeepTogether(student_section))
+            story.append(student_section[0])
+            story.append(log_table)
+            story.append(Spacer(1, 5))
 
     # 6. Symmetrical Signatures
     story.append(Spacer(1, 16))
