@@ -2954,6 +2954,69 @@ select {
     font-size: 13px;
 }
 
+.prediction-input-card {
+    display: grid;
+    gap: 16px;
+    padding: 20px 22px;
+    border: 1px solid #dbe5ec;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.prediction-input-card h3 {
+    margin: 0 0 5px;
+    color: #172b3a;
+    font-size: 17px;
+}
+
+.prediction-input-card p,
+.patient-ecg-data-note {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.prediction-input-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.prediction-input-grid label {
+    display: grid;
+    gap: 6px;
+    color: #455661;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.prediction-input-grid input,
+.prediction-input-grid select {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+    border: 1px solid #d9e2e5;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #334650;
+}
+
+.prediction-input-grid input:focus-visible,
+.prediction-input-grid select:focus-visible {
+    outline: 3px solid rgba(13, 148, 136, 0.3);
+    outline-offset: 1px;
+}
+
+.patient-status-pill.neutral {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.patient-ecg-data-note {
+    margin: 8px 2px 0;
+}
+
 .doctor-case-selector-label {
     color: #0f172a;
     font-weight: 700;
@@ -2984,6 +3047,16 @@ select {
     opacity: 0.65;
 }
 
+.app-loading {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: #f5f8fa;
+    color: #52636d;
+    font-size: 14px;
+}
+
 .doctor-case-selector select:focus-visible,
 .doctor-assess-btn:focus-visible,
 .clinician-dashboard-container button:focus-visible,
@@ -3005,6 +3078,10 @@ select {
 
     .doctor-assess-btn {
         width: 100%;
+    }
+
+    .prediction-input-grid {
+        grid-template-columns: 1fr;
     }
 }
 

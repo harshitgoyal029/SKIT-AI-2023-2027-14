@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getApiUrl } from "../../services/api";
+import { apiRequest, getApiUrl } from "../../services/api";
 import CvdXaiIntroSlider from "../CvdXaiIntroSlider";
+import EcgAnalysis from "../EcgAnalysis";
 import ClinicalReportPrintDocument from "../ClinicalReportPrintDocument";
 import { printClinicalReport } from "../../utils/printReport";
 
@@ -9,17 +10,27 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
     // Real data from MongoDB
     const [clinicalRecords, setClinicalRecords] = useState([]);
     const [ecgRecords, setEcgRecords] = useState([]);
+    const [ecgPrediction, setEcgPrediction] = useState(null);
+    const [ecgPredictionError, setEcgPredictionError] = useState("");
     const [predictions, setPredictions] = useState([]);
     const [loadingData, setLoadingData] = useState(true);
+    const [modelHealth, setModelHealth] = useState(null);
 
     // Form and submission states
     const [submittingStep, setSubmittingStep] = useState(false);
     const [stepSuccessMsg, setStepSuccessMsg] = useState("");
     const [stepErrorMsg, setStepErrorMsg] = useState("");
+    const [modelInputs, setModelInputs] = useState({
+        diastolicBp: "",
+        height: "",
+        weight: "",
+        smoking: "",
+        alcohol: "",
+        active: "",
+    });
 
     // Message triage and Print preview modals
     const [showContactModal, setShowContactModal] = useState(false);
-    const [triageMsgSent, setTriageMsgSent] = useState(false);
     const [showReportModal, setShowReportModal] = useState(false);
 
     const token = localStorage.getItem("cvd_xai_access_token") || localStorage.getItem("cvd_token");
@@ -64,20 +75,50 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
         fetchPatientData();
     }, [fetchPatientData]);
 
+    useEffect(() => {
+        let active = true;
+        apiRequest("/api/predict/health")
+            .then((data) => { if (active) setModelHealth(data); })
+            .catch(() => { if (active) setModelHealth(null); });
+        return () => { active = false; };
+    }, []);
+
     // Latest real records from MongoDB
     const latestClinical = clinicalRecords.length > 0 ? clinicalRecords[0] : null;
+    const latestEcgRecord = ecgRecords[0] || null;
     const latestPrediction = predictions.length > 0 ? predictions[0] : null;
+
+    useEffect(() => {
+        let active = true;
+        setEcgPrediction(null);
+        setEcgPredictionError("");
+        const recordId = latestEcgRecord?._id || latestEcgRecord?.id;
+        if (!recordId) return () => { active = false; };
+
+        apiRequest(`/api/predict/ecg/${encodeURIComponent(recordId)}`)
+            .then((data) => { if (active) setEcgPrediction(data); })
+            .catch((error) => {
+                if (active) setEcgPredictionError(error.message || "ECG assessment is unavailable.");
+            });
+        return () => { active = false; };
+    }, [latestEcgRecord?._id, latestEcgRecord?.id]);
 
     // Patient display details
     const patientDisplayName = currentUser?.full_name || currentUser?.name || patient?.name || "Patient";
 
     // Disease risk determination (Points 5: state whether at risk of disease or not, no %)
-    const riskScoreVal = latestPrediction ? Number(latestPrediction.risk_score || 0) : null;
-    const hasDiseaseRisk = riskScoreVal !== null && riskScoreVal >= 0.35;
-
-    const riskStatusLabel = latestPrediction
-        ? (hasDiseaseRisk ? "Cardiovascular Disease Risk Detected" : "No Immediate CVD Risk Detected")
-        : (latestClinical ? "Clinical Vitals Recorded" : "Awaiting Data Upload");
+    const riskStatusLabel = latestPrediction?.risk_level || latestPrediction?.predicted_label ||
+        (latestClinical ? "Clinical vitals recorded" : "Awaiting data upload");
+    const normalizedRiskLabel = String(riskStatusLabel).toLowerCase();
+    const hasDiseaseRisk = normalizedRiskLabel.includes("high") || normalizedRiskLabel.includes("abnormal");
+    const riskStatusTone = latestPrediction
+        ? (hasDiseaseRisk ? "warn" : normalizedRiskLabel.includes("low") || normalizedRiskLabel.includes("normal") ? "green" : "neutral")
+        : "neutral";
+    const featureContributions = Array.isArray(latestPrediction?.feature_contributions)
+        ? latestPrediction.feature_contributions.filter((item) =>
+            Number.isFinite(Number(item?.importance ?? item?.contribution))
+        )
+        : [];
 
     // Recalculate AI prediction on demand from latest vitals
     const handleRunPrediction = async () => {
@@ -89,46 +130,61 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
         setStepSuccessMsg("");
 
         try {
-            const bpHi = Math.max(70, Number(latestClinical.resting_bp) || 120);
-            const bpLo = Math.min(bpHi - 10, 80);
-            const cholVal = Number(latestClinical.cholesterol) || 200;
-            const cholCategory = cholVal > 220 ? 3 : (cholVal > 200 ? 2 : 1);
+            if (modelHealth && !modelHealth.model_loaded) {
+                throw new Error("The clinical prediction model is not available right now.");
+            }
+
+            const requiredInputs = [
+                [modelInputs.diastolicBp, "diastolic blood pressure"],
+                [modelInputs.height, "height"],
+                [modelInputs.weight, "weight"],
+                [modelInputs.smoking, "smoking status"],
+                [modelInputs.alcohol, "alcohol use"],
+                [modelInputs.active, "physical activity"],
+            ];
+            const missingInput = requiredInputs.find(([value]) => value === "");
+            if (missingInput) {
+                throw new Error(`Enter ${missingInput[1]} to run this model. These values are not part of the saved clinical record.`);
+            }
+
+            const ageVal = Number(latestClinical.age);
+            const bpHi = Number(latestClinical.resting_bp);
+            const bpLo = Number(modelInputs.diastolicBp);
+            const cholVal = Number(latestClinical.cholesterol);
+            const rawGender = String(latestClinical.sex ?? latestClinical.gender ?? "").trim().toLowerCase();
+            const genderVal = ["m", "male", "1"].includes(rawGender) ? 1
+                : ["f", "female", "0"].includes(rawGender) ? 0 : Number.NaN;
+            if (![ageVal, bpHi, bpLo, cholVal, genderVal].every(Number.isFinite) || latestClinical.fasting_blood_sugar == null) {
+                throw new Error("The saved clinical record is missing age, sex, blood pressure, cholesterol, or fasting blood sugar.");
+            }
+            if (bpHi <= bpLo) {
+                throw new Error("Systolic blood pressure must be greater than diastolic blood pressure.");
+            }
+            const cholCategory = cholVal >= 240 ? 3 : cholVal >= 200 ? 2 : 1;
             const glucCategory = latestClinical.fasting_blood_sugar ? 2 : 1;
-            const ageVal = Math.max(18, Math.min(100, Number(latestClinical.age) || 52));
-            const genderVal = (latestClinical.sex === "M" || latestClinical.gender === 1) ? 1 : 0;
 
             const payload = {
                 gender: genderVal,
-                height: 170.0,
-                weight: 70.0,
+                height: Number(modelInputs.height),
+                weight: Number(modelInputs.weight),
                 ap_hi: bpHi,
                 ap_lo: bpLo,
                 cholesterol: cholCategory,
                 gluc: glucCategory,
-                smoke: 0,
-                alco: 0,
-                active: 1,
+                smoke: Number(modelInputs.smoking),
+                alco: Number(modelInputs.alcohol),
+                active: Number(modelInputs.active),
                 age_years: ageVal,
                 clinical_record_id: latestClinical._id || latestClinical.id || null,
             };
 
-            const res = await fetch(getApiUrl("/api/predict/clinical"), {
+            await apiRequest("/api/predict/clinical", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify(payload),
+                body: payload,
             });
 
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                throw new Error(errData?.detail || "Prediction request could not be processed.");
-            }
-
             await fetchPatientData();
-            setStepSuccessMsg("✓ Clinical DNN risk assessment recalculated successfully!");
-            setTimeout(() => setStepSuccessMsg(""), 3500);
+            setStepSuccessMsg("Assessment completed. Review the model output with your clinician.");
         } catch (err) {
             setStepErrorMsg(err.message || "Failed to recalculate assessment.");
         } finally {
@@ -160,13 +216,13 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                             <div>
                                 <div className="patient-badge-row">
                                     <span className="patient-portal-tag">Patient Cardiovascular Portal</span>
-                                    <span className={`patient-status-pill ${hasDiseaseRisk ? "warn" : "green"}`}>
+                                    <span className={`patient-status-pill ${riskStatusTone}`}>
                                         ● {latestPrediction ? riskStatusLabel : (latestClinical ? "Vitals Stored" : "Active Profile")}
                                     </span>
                                 </div>
                                 <h2>Welcome back, {patientDisplayName}</h2>
                                 <p className="patient-hero-sub">
-                                    Your personalized heart health summary, AI cardiovascular risk assessments, and daily care guidance.
+                                    Review your saved measurements and model results. This dashboard does not provide a diagnosis.
                                 </p>
                             </div>
                         </div>
@@ -185,28 +241,22 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                             <span
                                 className="status-icon"
                                 style={{
-                                    background: latestPrediction
-                                        ? (hasDiseaseRisk ? "#ef4444" : "#22c55e")
-                                        : "#0284c7",
+                                    background: riskStatusTone === "warn" ? "#ef4444" : riskStatusTone === "green" ? "#22c55e" : "#0284c7",
                                 }}
                             >
-                                {latestPrediction ? (hasDiseaseRisk ? "!" : "✓") : "i"}
+                                {latestPrediction ? (hasDiseaseRisk ? "!" : "i") : "i"}
                             </span>
                             <div>
                                 <strong>
                                     {latestPrediction
-                                        ? (hasDiseaseRisk
-                                            ? "Cardiovascular Disease Risk Detected — Clinical Follow-Up Recommended"
-                                            : "No Immediate Cardiovascular Disease Risk Detected — Optimal Range")
+                                        ? `Stored model result: ${riskStatusLabel}`
                                         : latestClinical
                                         ? "Clinical Vitals Recorded — Assessment Ready"
                                         : "Welcome to CardioXAI — Please Record Your Clinical Vitals"}
                                 </strong>
                                 <p>
                                     {latestPrediction
-                                        ? (hasDiseaseRisk
-                                            ? `Evaluated by trained deep neural network (DNN). Based on systolic BP ${latestClinical?.resting_bp || 120} mmHg and cholesterol ${latestClinical?.cholesterol || 200} mg/dL, early intervention is advised.`
-                                            : `Evaluated by trained deep neural network (DNN). Based on systolic BP ${latestClinical?.resting_bp || 120} mmHg and cholesterol ${latestClinical?.cholesterol || 200} mg/dL, your cardiac parameters are within target boundaries.`)
+                                        ? `Model: ${latestPrediction.model_name || "not recorded"}. Review the source measurements and discuss this result with your clinician; it is not a diagnosis.`
                                         : latestClinical
                                         ? "Your vitals are stored in MongoDB. Click below to view your full AI prediction results."
                                         : "No clinical measurements found yet. Use the Upload Vitals tab to record your measurements."}
@@ -232,11 +282,10 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                             </div>
                         </div>
 
-                        {/* Point 7: Attending Cardiologist Unassigned (Under Review) */}
                         <div className="status-banner-careteam">
-                            <small>Attending Cardiologist</small>
-                            <strong style={{ color: "#b45309" }}>Unassigned (Under Review)</strong>
-                            <div style={{ fontSize: "11px", color: "#64748b" }}>Case queued in clinical triage</div>
+                            <small>Care team</small>
+                            <strong style={{ color: "#475569" }}>Contact your care provider</strong>
+                            <div style={{ fontSize: "11px", color: "#64748b" }}>Care team assignment and messaging are not available in this app.</div>
                         </div>
                     </div>
 
@@ -247,106 +296,24 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                         <div>
                             <div className="patient-section-header">
                                 <h3>My Latest Clinical Measurements</h3>
-                                <span className="last-sync-badge">
-                                    Saved in MongoDB: {new Date(latestClinical.recorded_at).toLocaleDateString()}
+                            <span className="last-sync-badge">
+                                    {latestClinical.recorded_at ? `Recorded ${new Date(latestClinical.recorded_at).toLocaleDateString()}` : "Record date unavailable"}
                                 </span>
                             </div>
 
                             <div className="patient-vitals-grid">
-                                <div className="patient-vital-card">
-                                    <div className="vital-card-top">
-                                        <span className="vital-label">Resting Blood Pressure</span>
-                                        <span className={`vital-tag ${latestClinical.resting_bp > 130 ? "warn" : "optimal"}`}>
-                                            {latestClinical.resting_bp > 130 ? "Elevated" : "Normal"}
-                                        </span>
+                                {[
+                                    ["Resting Blood Pressure", latestClinical.resting_bp, "mmHg"],
+                                    ["Total Cholesterol", latestClinical.cholesterol, "mg/dL"],
+                                    ["Max Heart Rate", latestClinical.max_heart_rate, "BPM"],
+                                    ["Fasting Blood Sugar", latestClinical.fasting_blood_sugar == null ? null : (latestClinical.fasting_blood_sugar ? "> 120" : "≤ 120"), "mg/dL · category recorded"],
+                                    ["ST Depression", latestClinical.st_depression, "mm"],
+                                ].map(([label, value, unit]) => (
+                                    <div className="patient-vital-card" key={label}>
+                                        <div className="vital-card-top"><span className="vital-label">{label}</span><span className="vital-tag">{value == null ? "Not recorded" : "Recorded"}</span></div>
+                                        <div className="vital-value-row"><span className="vital-num">{value == null ? "—" : value}</span><span className="vital-unit">{value == null ? "" : unit}</span></div>
                                     </div>
-                                    <div className="vital-value-row">
-                                        <span className="vital-num">{latestClinical.resting_bp}</span>
-                                        <span className="vital-unit">mmHg</span>
-                                    </div>
-                                    <div className="vital-range-bar">
-                                        <div
-                                            className={`range-fill ${latestClinical.resting_bp > 130 ? "warn" : "optimal"}`}
-                                            style={{ width: `${Math.min(100, (latestClinical.resting_bp / 180) * 100)}%` }}
-                                        ></div>
-                                    </div>
-                                    <small className="vital-target">Target: &lt; 120 mmHg</small>
-                                </div>
-
-                                <div className="patient-vital-card">
-                                    <div className="vital-card-top">
-                                        <span className="vital-label">Total Cholesterol</span>
-                                        <span className={`vital-tag ${latestClinical.cholesterol > 200 ? "warn" : "optimal"}`}>
-                                            {latestClinical.cholesterol > 200 ? "Borderline / High" : "Desirable"}
-                                        </span>
-                                    </div>
-                                    <div className="vital-value-row">
-                                        <span className="vital-num">{latestClinical.cholesterol}</span>
-                                        <span className="vital-unit">mg/dL</span>
-                                    </div>
-                                    <div className="vital-range-bar">
-                                        <div
-                                            className={`range-fill ${latestClinical.cholesterol > 200 ? "warn" : "optimal"}`}
-                                            style={{ width: `${Math.min(100, (latestClinical.cholesterol / 300) * 100)}%` }}
-                                        ></div>
-                                    </div>
-                                    <small className="vital-target">Target: &lt; 200 mg/dL</small>
-                                </div>
-
-                                <div className="patient-vital-card">
-                                    <div className="vital-card-top">
-                                        <span className="vital-label">Max Heart Rate</span>
-                                        <span className="vital-tag optimal">Recorded</span>
-                                    </div>
-                                    <div className="vital-value-row">
-                                        <span className="vital-num">{latestClinical.max_heart_rate || "--"}</span>
-                                        <span className="vital-unit">BPM</span>
-                                    </div>
-                                    <div className="vital-range-bar">
-                                        <div className="range-fill optimal" style={{ width: "65%" }}></div>
-                                    </div>
-                                    <small className="vital-target">Target: 60 - 150 BPM</small>
-                                </div>
-
-                                <div className="patient-vital-card">
-                                    <div className="vital-card-top">
-                                        <span className="vital-label">Fasting Blood Sugar</span>
-                                        <span className={`vital-tag ${latestClinical.fasting_blood_sugar ? "warn" : "optimal"}`}>
-                                            {latestClinical.fasting_blood_sugar ? "&gt; 120 mg/dL" : "&le; 120 mg/dL"}
-                                        </span>
-                                    </div>
-                                    <div className="vital-value-row">
-                                        <span className="vital-num">{latestClinical.fasting_blood_sugar ? "High" : "Normal"}</span>
-                                        <span className="vital-unit">Blood Sugar</span>
-                                    </div>
-                                    <div className="vital-range-bar">
-                                        <div
-                                            className={`range-fill ${latestClinical.fasting_blood_sugar ? "warn" : "optimal"}`}
-                                            style={{ width: latestClinical.fasting_blood_sugar ? "85%" : "40%" }}
-                                        ></div>
-                                    </div>
-                                    <small className="vital-target">Target: Fasting &lt; 100 mg/dL</small>
-                                </div>
-
-                                <div className="patient-vital-card">
-                                    <div className="vital-card-top">
-                                        <span className="vital-label">ST Depression</span>
-                                        <span className={`vital-tag ${latestClinical.st_depression > 1.0 ? "warn" : "optimal"}`}>
-                                            {latestClinical.st_depression > 1.0 ? "Depressed" : "Normal"}
-                                        </span>
-                                    </div>
-                                    <div className="vital-value-row">
-                                        <span className="vital-num">{latestClinical.st_depression}</span>
-                                        <span className="vital-unit">mm</span>
-                                    </div>
-                                    <div className="vital-range-bar">
-                                        <div
-                                            className={`range-fill ${latestClinical.st_depression > 1.0 ? "warn" : "optimal"}`}
-                                            style={{ width: `${Math.min(100, (latestClinical.st_depression / 3.0) * 100)}%` }}
-                                        ></div>
-                                    </div>
-                                    <small className="vital-target">Target: &lt; 0.5 mm</small>
-                                </div>
+                                ))}
                             </div>
                         </div>
                     ) : (
@@ -368,54 +335,38 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                         )
                     )}
 
+                    {latestEcgRecord && (
+                        <div>
+                            <EcgAnalysis ecg={{
+                                status: ecgPrediction?.risk_level || "ECG assessment pending",
+                                heartRate: ecgPrediction?.heart_rate_bpm,
+                                rhythm: ecgPrediction?.rhythm_classification,
+                                signalQuality: ecgPrediction?.metrics?.signal_quality || "Not reported",
+                            }} />
+                            {ecgPredictionError && <p className="form-error" role="status">{ecgPredictionError}</p>}
+                            <p className="patient-ecg-data-note">Latest uploaded file: {latestEcgRecord.original_name || "ECG recording"}. The displayed waveform is illustrative because this API returns ECG measurements, not raw waveform samples.</p>
+                        </div>
+                    )}
+
                     {/* ----------------------------------------------------------------- */}
                     {/* POSITION 4 (LAST): PERSONALIZED HEART HEALTH GUIDANCE             */}
                     {/* ----------------------------------------------------------------- */}
                     <div>
                         <div className="patient-section-header">
-                            <h3>Personalized Heart Health Guidance</h3>
-                            <span className="last-sync-badge">Cardiovascular Wellness Plan</span>
+                            <h3>Care information</h3>
+                            <span className="last-sync-badge">General guidance</span>
                         </div>
 
                         <div className="patient-lifestyle-grid">
                             <div className="patient-plan-card">
-                                <div className="plan-card-icon">🥗</div>
-                                <h4>Heart-Healthy Nutrition</h4>
-                                <p>
-                                    Prioritize soluble fiber, extra virgin olive oil, walnuts, and green leafy vegetables.
-                                    Restrict dietary sodium to under 2,000 mg/day to alleviate vascular pressure.
-                                </p>
-                                <span className="plan-pill">Target: &lt; 2g Sodium / Day</span>
+                                <div className="plan-card-icon">ℹ️</div>
+                                <h4>Discuss your results with your care provider</h4>
+                                <p>This app displays recorded measurements and model outputs. A qualified clinician can interpret them in your health context and advise on next steps.</p>
                             </div>
-
                             <div className="patient-plan-card">
-                                <div className="plan-card-icon">🚶‍♀️</div>
-                                <h4>Aerobic Cardiovascular Activity</h4>
-                                <p>
-                                    Maintain 30 minutes of moderate aerobic activity (brisk walking, cycling) at least 5 days weekly
-                                    to enhance myocardial endurance and regulate HDL cholesterol.
-                                </p>
-                                <span className="plan-pill">Goal: 150 Mins / Week</span>
-                            </div>
-
-                            <div className="patient-plan-card">
-                                <div className="plan-card-icon">💊</div>
-                                <h4>Blood Pressure & Biomarker Logs</h4>
-                                <p>
-                                    Record morning resting blood pressure twice weekly using a calibrated cuff.
-                                    Keep a symptom diary of any palpitations or shortness of breath.
-                                </p>
-                                <span className="plan-pill">Log Frequency: 2x Weekly</span>
-                            </div>
-
-                            <div className="patient-plan-card">
-                                <div className="plan-card-icon">📅</div>
-                                <h4>Clinical Appointment & Triage</h4>
-                                <p>
-                                    Your case is queued in cardiology triage. Once an attending cardiologist is assigned,
-                                    your formal outpatient consultation time will be scheduled.
-                                </p>
-                                <span className="plan-pill highlight">Status: Under Triage Review</span>
+                                <div className="plan-card-icon">📞</div>
+                                <h4>Need help?</h4>
+                                <p>Contact your clinic using its usual phone number or patient portal. This app does not send messages or schedule appointments.</p>
                             </div>
                         </div>
                     </div>
@@ -427,6 +378,34 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
             {/* ========================================================================= */}
             {activeView === "predictions" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
+                    {latestClinical && (
+                        <section className="prediction-input-card" aria-labelledby="prediction-input-title">
+                            <div>
+                                <h3 id="prediction-input-title">Complete the model inputs</h3>
+                                <p>The clinical model requires these additional values. They are used for this calculation and are not added to your saved clinical record.</p>
+                            </div>
+                            <div className="prediction-input-grid">
+                                <label>Diastolic blood pressure (mmHg)
+                                    <input type="number" min="1" max="200" value={modelInputs.diastolicBp} onChange={(e) => setModelInputs((current) => ({ ...current, diastolicBp: e.target.value }))} />
+                                </label>
+                                <label>Height (cm)
+                                    <input type="number" min="1" max="300" step="0.1" value={modelInputs.height} onChange={(e) => setModelInputs((current) => ({ ...current, height: e.target.value }))} />
+                                </label>
+                                <label>Weight (kg)
+                                    <input type="number" min="1" max="500" step="0.1" value={modelInputs.weight} onChange={(e) => setModelInputs((current) => ({ ...current, weight: e.target.value }))} />
+                                </label>
+                                {[["smoking", "Smoking status"], ["alcohol", "Alcohol use"], ["active", "Physically active"]].map(([name, label]) => (
+                                    <label key={name}>{label}
+                                        <select value={modelInputs[name]} onChange={(e) => setModelInputs((current) => ({ ...current, [name]: e.target.value }))}>
+                                            <option value="">Select</option>
+                                            <option value="1">Yes</option>
+                                            <option value="0">No</option>
+                                        </select>
+                                    </label>
+                                ))}
+                            </div>
+                        </section>
+                    )}
                     {/* Model Specification Header Banner */}
                     <div
                         style={{
@@ -446,7 +425,9 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                                 CARDIOVASCULAR AI PREDICTION ENGINE
                             </span>
                             <h3 style={{ margin: "2px 0 0", color: "#0f172a", fontSize: "18px" }}>
-                                Model: clinical_dnn.keras (16 features, 10,302 multi-center patient records)
+                                {modelHealth
+                                    ? `${modelHealth.model_name} · ${modelHealth.model_loaded ? "Model ready" : "Model unavailable"}${modelHealth.feature_count ? ` · ${modelHealth.feature_count} features` : ""}`
+                                    : "Checking prediction service…"}
                             </h3>
                             <span style={{ fontSize: "12px", color: "#64748b" }}>
                                 {latestPrediction?.created_at
@@ -525,8 +506,8 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                             {/* Primary Disease Risk Status Card (Point 5: Disease risk status without %) */}
                             <div
                                 style={{
-                                    background: hasDiseaseRisk ? "#fef2f2" : "#f0fdf4",
-                                    border: `1.5px solid ${hasDiseaseRisk ? "#fecaca" : "#bbf7d0"}`,
+                                    background: riskStatusTone === "warn" ? "#fef2f2" : riskStatusTone === "green" ? "#f0fdf4" : "#f8fafc",
+                                    border: `1.5px solid ${riskStatusTone === "warn" ? "#fecaca" : riskStatusTone === "green" ? "#bbf7d0" : "#cbd5e1"}`,
                                     borderRadius: "16px",
                                     padding: "28px",
                                     display: "flex",
@@ -542,15 +523,13 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                                                 fontWeight: 700,
                                                 textTransform: "uppercase",
                                                 letterSpacing: "0.5px",
-                                                color: hasDiseaseRisk ? "#b91c1c" : "#15803d",
+                                                color: riskStatusTone === "warn" ? "#b91c1c" : riskStatusTone === "green" ? "#15803d" : "#475569",
                                             }}
                                         >
-                                            CARDIOVASCULAR DISEASE RISK ASSESSMENT
+                                            STORED MODEL RESULT
                                         </span>
                                         <h2 style={{ margin: "4px 0 0", color: "#0f172a", fontSize: "26px", fontWeight: 800 }}>
-                                            {hasDiseaseRisk
-                                                ? "Cardiovascular Disease Risk Detected"
-                                                : "No Immediate Cardiovascular Disease Risk Detected"}
+                                            {riskStatusLabel}
                                         </h2>
                                     </div>
                                     <div
@@ -559,141 +538,41 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                                             borderRadius: "24px",
                                             fontWeight: 800,
                                             fontSize: "14px",
-                                            background: hasDiseaseRisk ? "#dc2626" : "#16a34a",
+                                            background: riskStatusTone === "warn" ? "#dc2626" : riskStatusTone === "green" ? "#16a34a" : "#64748b",
                                             color: "#ffffff",
                                             boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
                                         }}
                                     >
-                                        ● {hasDiseaseRisk ? "Action Advised" : "Optimal Low Risk"}
+                                        ● Model output
                                     </div>
                                 </div>
 
                                 <div style={{ background: "#ffffff", borderRadius: "10px", padding: "16px 20px", border: "1px solid rgba(0,0,0,0.06)" }}>
                                     <strong style={{ display: "block", color: "#0f172a", marginBottom: "4px", fontSize: "14px" }}>
-                                        Clinical Diagnostic Summary:
+                                        Review context:
                                     </strong>
                                     <p style={{ margin: 0, fontSize: "14px", color: "#334155", lineHeight: "1.6" }}>
-                                        {hasDiseaseRisk
-                                            ? "Based on your clinical hemodynamics, lipid indicators, and biomarker profile, our trained deep learning model has identified risk factors associated with cardiovascular disease. We advise sharing this assessment with your physician or cardiology care team to review antihypertensive and lipid-management strategies."
-                                            : "Your clinical biomarkers fall within the optimal low-risk cardiovascular spectrum. Continue with proactive physical exercise, balanced dietary habits, and routine annual wellness monitoring to preserve long-term myocardial health."}
+                                        This stored model result is not a diagnosis. Confirm the source measurements and discuss the result with a qualified clinician.
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Biomarker Risk Attribution (Explainable AI) */}
-                            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "26px" }}>
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
-                                    <div>
-                                        <h3 style={{ margin: "0 0 4px", color: "#0f172a", fontSize: "18px" }}>
-                                            Contributing Biomarker Analysis (Explainable AI)
-                                        </h3>
-                                        <p style={{ margin: 0, color: "#64748b", fontSize: "13px" }}>
-                                            Individual physiological parameters evaluated by the deep neural network:
-                                        </p>
-                                    </div>
-                                    <span style={{ fontSize: "12px", background: "#f1f5f9", padding: "4px 10px", borderRadius: "6px", color: "#475569" }}>
-                                        Trained DNN Attributions
-                                    </span>
-                                </div>
-
-                                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                                    {/* Systolic BP */}
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                                        <div style={{ flex: 1 }}>
-                                            <strong style={{ color: "#0f172a", fontSize: "14px", display: "block" }}>
-                                                Resting Systolic Blood Pressure
-                                            </strong>
-                                            <span style={{ fontSize: "13px", color: "#64748b" }}>
-                                                Recorded: <strong>{latestClinical?.resting_bp || 120} mmHg</strong> (Target: &lt; 120 mmHg) — Primary determinant of vascular wall stress and left ventricular workload.
-                                            </span>
-                                        </div>
-                                        <span
-                                            style={{
-                                                fontWeight: 700,
-                                                fontSize: "12px",
-                                                padding: "5px 12px",
-                                                borderRadius: "6px",
-                                                background: (latestClinical?.resting_bp || 120) > 130 ? "#fee2e2" : "#dcfce7",
-                                                color: (latestClinical?.resting_bp || 120) > 130 ? "#991b1b" : "#166534",
-                                            }}
-                                        >
-                                            {(latestClinical?.resting_bp || 120) > 130 ? "▲ Risk Factor (+)" : "✓ Protective / Normal"}
-                                        </span>
-                                    </div>
-
-                                    {/* Serum Cholesterol */}
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                                        <div style={{ flex: 1 }}>
-                                            <strong style={{ color: "#0f172a", fontSize: "14px", display: "block" }}>
-                                                Serum Total Cholesterol
-                                            </strong>
-                                            <span style={{ fontSize: "13px", color: "#64748b" }}>
-                                                Recorded: <strong>{latestClinical?.cholesterol || 200} mg/dL</strong> (Target: &lt; 200 mg/dL) — Associated with coronary atheroma formation and plaque burden.
-                                            </span>
-                                        </div>
-                                        <span
-                                            style={{
-                                                fontWeight: 700,
-                                                fontSize: "12px",
-                                                padding: "5px 12px",
-                                                borderRadius: "6px",
-                                                background: (latestClinical?.cholesterol || 200) > 200 ? "#fee2e2" : "#dcfce7",
-                                                color: (latestClinical?.cholesterol || 200) > 200 ? "#991b1b" : "#166534",
-                                            }}
-                                        >
-                                            {(latestClinical?.cholesterol || 200) > 200 ? "▲ Risk Factor (+)" : "✓ Desirable"}
-                                        </span>
-                                    </div>
-
-                                    {/* Fasting Blood Sugar */}
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                                        <div style={{ flex: 1 }}>
-                                            <strong style={{ color: "#0f172a", fontSize: "14px", display: "block" }}>
-                                                Fasting Blood Sugar / Glycemic Status
-                                            </strong>
-                                            <span style={{ fontSize: "13px", color: "#64748b" }}>
-                                                Status: <strong>{latestClinical?.fasting_blood_sugar ? "Elevated (> 120 mg/dL)" : "Normal (≤ 120 mg/dL)"}</strong> — Key predictor of microvascular and endothelial dysfunction.
-                                            </span>
-                                        </div>
-                                        <span
-                                            style={{
-                                                fontWeight: 700,
-                                                fontSize: "12px",
-                                                padding: "5px 12px",
-                                                borderRadius: "6px",
-                                                background: latestClinical?.fasting_blood_sugar ? "#fee2e2" : "#dcfce7",
-                                                color: latestClinical?.fasting_blood_sugar ? "#991b1b" : "#166534",
-                                            }}
-                                        >
-                                            {latestClinical?.fasting_blood_sugar ? "▲ Metabolic Risk (+)" : "✓ Normoglycemic"}
-                                        </span>
-                                    </div>
-
-                                    {/* ST Depression */}
-                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", background: "#f8fafc", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                                        <div style={{ flex: 1 }}>
-                                            <strong style={{ color: "#0f172a", fontSize: "14px", display: "block" }}>
-                                                ST Segment Depression (ECG Stress Marker)
-                                            </strong>
-                                            <span style={{ fontSize: "13px", color: "#64748b" }}>
-                                                Measured: <strong>{latestClinical?.st_depression || "0.0"} mm</strong> (Slope: {latestClinical?.st_slope || "Flat"}) — Evaluates myocardial subendocardial ischemia under exertion.
-                                            </span>
-                                        </div>
-                                        <span
-                                            style={{
-                                                fontWeight: 700,
-                                                fontSize: "12px",
-                                                padding: "5px 12px",
-                                                borderRadius: "6px",
-                                                background: (Number(latestClinical?.st_depression) || 0) > 1.0 ? "#fee2e2" : "#dcfce7",
-                                                color: (Number(latestClinical?.st_depression) || 0) > 1.0 ? "#991b1b" : "#166534",
-                                            }}
-                                        >
-                                            {(Number(latestClinical?.st_depression) || 0) > 1.0 ? "▲ Ischemia Sign (+)" : "✓ No Acute Strain"}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+                            <section className="patient-model-features" aria-labelledby="patient-model-features-title">
+                                <h3 id="patient-model-features-title">Model feature contributions</h3>
+                                <p>Values below are model output. They are not clinical findings or treatment guidance.</p>
+                                {featureContributions.length > 0 ? (
+                                    <ul>
+                                        {featureContributions.slice(0, 8).map((item, index) => (
+                                            <li key={`${item.feature || "feature"}-${index}`}>
+                                                <span>{item.feature || "Feature"}</span>
+                                                <strong>{Number(item.importance ?? item.contribution).toFixed(3)}</strong>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p>No feature contribution data is available for this assessment.</p>
+                                )}
+                            </section>
 
                             {/* Historical Prediction Log */}
                             <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "26px" }}>
@@ -729,15 +608,18 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                                             </thead>
                                             <tbody>
                                                 {predictions.map((p, idx) => {
-                                                    const score = Number(p.risk_score || 0);
-                                                    const riskFound = score >= 0.35;
+                                                    const resultLabel = p.risk_level || p.predicted_label || "Assessment available";
+                                                    const resultText = String(resultLabel).toLowerCase();
+                                                    const resultTone = resultText.includes("high") || resultText.includes("abnormal")
+                                                        ? "high"
+                                                        : resultText.includes("low") || resultText.includes("normal") ? "low" : "pending";
                                                     return (
                                                         <tr key={p.id || idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
                                                             <td style={{ padding: "12px 14px", color: "#0f172a" }}>
-                                                                {p.created_at ? new Date(p.created_at).toLocaleString() : "Recent"}
+                                                                {p.created_at ? new Date(p.created_at).toLocaleString() : "Time unavailable"}
                                                             </td>
                                                             <td style={{ padding: "12px 14px", color: "#64748b" }}>
-                                                                {p.model_name || "clinical_dnn"}
+                                                                {p.model_name || "Not recorded"}
                                                             </td>
                                                             <td style={{ padding: "12px 14px" }}>
                                                                 <span
@@ -746,17 +628,17 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                                                                         borderRadius: "12px",
                                                                         fontSize: "11px",
                                                                         fontWeight: 700,
-                                                                        background: riskFound ? "#fee2e2" : "#dcfce7",
-                                                                        color: riskFound ? "#991b1b" : "#166534",
+                                                                        background: resultTone === "high" ? "#fee2e2" : resultTone === "low" ? "#dcfce7" : "#f1f5f9",
+                                                                        color: resultTone === "high" ? "#991b1b" : resultTone === "low" ? "#166534" : "#475569",
                                                                     }}
                                                                 >
-                                                                    {riskFound ? "Risk Detected" : "No Immediate Risk"}
+                                                                    {resultLabel}
                                                                 </span>
                                                             </td>
                                                             <td style={{ padding: "12px 14px", color: "#64748b" }}>
                                                                 {Array.isArray(p.top_contributing_features) && p.top_contributing_features.length > 0
                                                                     ? p.top_contributing_features.slice(0, 3).join(", ")
-                                                                    : "Systolic BP, Cholesterol"}
+                                                                    : "Not provided"}
                                                             </td>
                                                             <td style={{ padding: "12px 14px", color: "#16a34a", fontWeight: 600 }}>
                                                                 ✓ Saved
@@ -775,7 +657,7 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                                 <div>
                                     <strong style={{ color: "#0f172a", display: "block" }}>Download Official Clinical Assessment Report</strong>
                                     <span style={{ fontSize: "13px", color: "#64748b" }}>
-                                        Generate an official printable report for your consultation with your physician.
+                                    Generate a printable summary of the stored assessment and source data.
                                     </span>
                                 </div>
                                 <div style={{ display: "flex", gap: "10px" }}>
@@ -807,47 +689,12 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                 </div>
             )}
 
-            {/* Message Care Team Triage Modal */}
             {showContactModal && (
                 <div className="patient-modal-overlay" onClick={() => setShowContactModal(false)}>
-                    <div className="patient-modal-box" onClick={(e) => e.stopPropagation()}>
-                        <h3>🩺 Contact Cardiology Care Team (Triage)</h3>
-                        <p style={{ fontSize: "13px", color: "#64748b" }}>
-                            Your attending cardiologist is currently <strong>Unassigned (Under Review)</strong>.
-                            Your inquiry will be routed directly to the on-call cardiology clinical triage team.
-                        </p>
-                        {triageMsgSent ? (
-                            <div className="form-success" style={{ margin: "16px 0" }}>
-                                ✓ Your message has been routed to Cardiology On-Call Triage. A nurse practitioner or cardiologist will respond within 24 hours.
-                            </div>
-                        ) : (
-                            <textarea
-                                className="patient-message-input"
-                                rows={4}
-                                placeholder="Describe any symptoms, medication questions, or request an appointment..."
-                            />
-                        )}
-                        <div className="modal-actions-row">
-                            <button
-                                type="button"
-                                className="patient-btn outline"
-                                onClick={() => {
-                                    setShowContactModal(false);
-                                    setTriageMsgSent(false);
-                                }}
-                            >
-                                Close
-                            </button>
-                            {!triageMsgSent && (
-                                <button
-                                    type="button"
-                                    className="patient-btn primary"
-                                    onClick={() => setTriageMsgSent(true)}
-                                >
-                                    Send to Triage
-                                </button>
-                            )}
-                        </div>
+                    <div className="patient-modal-box" role="dialog" aria-modal="true" aria-labelledby="contact-care-title" onClick={(e) => e.stopPropagation()}>
+                        <h3 id="contact-care-title">Contact your care team</h3>
+                        <p style={{ fontSize: "13px", color: "#64748b" }}>Messaging and appointment scheduling are not available in this app. Please use your clinic’s usual contact method.</p>
+                        <div className="modal-actions-row"><button type="button" className="patient-btn primary" onClick={() => setShowContactModal(false)}>Close</button></div>
                     </div>
                 </div>
             )}
@@ -859,7 +706,7 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                         <div className="report-preview-modal-header">
                             <div>
                                 <strong style={{ fontSize: "16px", color: "#0f172a", display: "block" }}>
-                                    📄 Official Medical Clinical Report Preview
+                                    📄 Clinical Assessment Summary Preview
                                 </strong>
                                 <span style={{ fontSize: "12px", color: "#64748b" }}>
                                     Formatted specifically for high-clarity A4 printing and PDF record saving (zero website UI elements)

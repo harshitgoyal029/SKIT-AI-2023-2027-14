@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { lazy, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 
 import { getStoredUser } from "../services/authService";
 
-import PatientDashboardView from "../components/roles/PatientDashboardView";
-import DoctorDashboardView from "../components/roles/DoctorDashboardView";
-import ClinicianDashboardView from "../components/roles/ClinicianDashboardView";
+const PatientDashboardView = lazy(() => import("../components/roles/PatientDashboardView"));
+const DoctorDashboardView = lazy(() => import("../components/roles/DoctorDashboardView"));
+const ClinicianDashboardView = lazy(() => import("../components/roles/ClinicianDashboardView"));
 
 const Dashboard = ({ activeView }) => {
     const location = useLocation();
