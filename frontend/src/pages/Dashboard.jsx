@@ -583,6 +583,22 @@ const Dashboard = () => {
 
 
 
+            <div className="test-data-toolbar" role="status" aria-live="polite">
+                <div className="test-data-indicator">
+                    <span className="test-data-dot"></span>
+                    <div>
+                        <strong>Dashboard Test Data Connected</strong>
+                        <span>Source: {dataSource}</span>
+                    </div>
+                </div>
+                <div className="test-data-meta">
+                    <span>Last loaded</span>
+                    <strong>{formatDate(lastUpdated)}</strong>
+                </div>
+            </div>
+
+
+
             {/* -------------------------------------------------
 
                 TEST DATA LOADING / ERROR

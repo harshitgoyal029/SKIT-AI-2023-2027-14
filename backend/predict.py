@@ -77,7 +77,7 @@ class ModelHealthResponse(BaseModel):
 @router.post("/clinical", response_model=PredictionResponse)
 def predict_clinical(
     body: ClinicalPredictionInput,
-    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor, UserRole.lab_technician)),
+    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor, UserRole.clinician, UserRole.lab_technician)),
     db: Database = Depends(get_db),
 ) -> PredictionResponse:
     """Run the clinical DNN model and return a CVD risk prediction.

@@ -102,7 +102,7 @@ def _ecg_payload(doc: dict) -> dict:
 @router.post("/clinical", status_code=status.HTTP_201_CREATED)
 def submit_clinical_data(
     body: ClinicalDataInput,
-    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor, UserRole.lab_technician)),
+    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor, UserRole.clinician, UserRole.lab_technician)),
     db: Database = Depends(get_db),
 ) -> dict:
     """Submit a clinical observation (vitals, lab results)."""
@@ -121,7 +121,7 @@ def submit_clinical_data(
 
 @router.get("/clinical")
 def list_clinical_data(
-    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor)),
+    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor, UserRole.clinician)),
     db: Database = Depends(get_db),
 ) -> list[dict]:
     """Get all clinical records for the current user."""
@@ -170,7 +170,7 @@ async def upload_ecg(
     sampling_rate_hz: int = Form(default=500),
     lead_count: int = Form(default=1),
     duration_seconds: Optional[float] = Form(default=None),
-    user: dict = Depends(require_role(UserRole.patient, UserRole.lab_technician)),
+    user: dict = Depends(require_role(UserRole.patient, UserRole.clinician, UserRole.lab_technician)),
     db: Database = Depends(get_db),
 ) -> dict:
     """Upload an ECG signal file (CSV, TXT, DAT, HEA, PDF, or image)."""
@@ -221,7 +221,7 @@ async def upload_ecg(
 
 @router.get("/ecg")
 def list_ecg_recordings(
-    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor)),
+    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor, UserRole.clinician)),
     db: Database = Depends(get_db),
 ) -> list[dict]:
     """List all ECG recordings for the current user."""
@@ -233,7 +233,7 @@ def list_ecg_recordings(
 @router.get("/ecg/{ecg_id}")
 def get_ecg_recording(
     ecg_id: str,
-    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor)),
+    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor, UserRole.clinician)),
     db: Database = Depends(get_db),
 ) -> dict:
     """Get metadata for a single ECG recording."""
@@ -246,7 +246,7 @@ def get_ecg_recording(
 @router.get("/ecg/{ecg_id}/download")
 def download_ecg(
     ecg_id: str,
-    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor)),
+    user: dict = Depends(require_role(UserRole.patient, UserRole.doctor, UserRole.clinician)),
     db: Database = Depends(get_db),
 ) -> FileResponse:
     """Download an ECG signal file."""
