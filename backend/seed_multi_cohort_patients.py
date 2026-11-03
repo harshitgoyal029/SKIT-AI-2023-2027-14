@@ -9,6 +9,7 @@ records, and explainable AI (SHAP) attributions in MongoDB.
 
 from typing import List, Dict, Any
 from datetime import datetime, timezone
+from bson import ObjectId
 from database import get_db, verify_connection, save_prediction_explanation
 from models import Patient, ClinicalRecord, ECGRecording
 
@@ -16,6 +17,7 @@ from models import Patient, ClinicalRecord, ECGRecording
 SAMPLE_COHORTS: List[Dict[str, Any]] = [
     {
         "patientId": "CVD-2026-101",
+        "mongo_id": "60c72b2f9b1d8b2bad000101",
         "name": "Ananya Sharma",
         "age": 34,
         "gender": "Female",
@@ -49,6 +51,7 @@ SAMPLE_COHORTS: List[Dict[str, Any]] = [
     },
     {
         "patientId": "CVD-2026-102",
+        "mongo_id": "60c72b2f9b1d8b2bad000102",
         "name": "Deepak Verma",
         "age": 48,
         "gender": "Male",
@@ -81,6 +84,7 @@ SAMPLE_COHORTS: List[Dict[str, Any]] = [
     },
     {
         "patientId": "CVD-2026-103",
+        "mongo_id": "60c72b2f9b1d8b2bad000103",
         "name": "Meera Nambiar",
         "age": 66,
         "gender": "Female",
@@ -114,6 +118,7 @@ SAMPLE_COHORTS: List[Dict[str, Any]] = [
     },
     {
         "patientId": "CVD-2026-104",
+        "mongo_id": "60c72b2f9b1d8b2bad000104",
         "name": "Harish Chandra",
         "age": 71,
         "gender": "Male",
@@ -158,37 +163,41 @@ def seed_multi_cohorts(db) -> Dict[str, int]:
 
     for data in SAMPLE_COHORTS:
         pid = data["patientId"]
+        mongo_oid = ObjectId(data["mongo_id"])
         
         # 1. Patient profile
         if not patient_col.find_one({"patientId": pid}):
-            patient = Patient(
-                patientId=pid,
-                name=data["name"],
-                age=data["age"],
-                gender=data["gender"],
-                phone=data.get("phone"),
-                email=data.get("email"),
-                bloodPressure=data.get("bloodPressure"),
-                cholesterol=data.get("cholesterol"),
-                heartRate=data.get("heartRate"),
-                diabetes=data.get("diabetes"),
-                smoking=data.get("smoking"),
-                familyHistory=data.get("familyHistory"),
-                risk_score=data.get("risk_score"),
-                riskLevel=data.get("riskLevel"),
-                top_contributing_features=data.get("top_contributing_features"),
-            )
-            patient_col.insert_one(patient.model_dump(by_alias=True, exclude={"id"}))
+            patient_doc = {
+                "_id": mongo_oid,
+                "patientId": pid,
+                "name": data["name"],
+                "age": data["age"],
+                "gender": data["gender"],
+                "phone": data.get("phone"),
+                "email": data.get("email"),
+                "bloodPressure": data.get("bloodPressure"),
+                "cholesterol": data.get("cholesterol"),
+                "heartRate": data.get("heartRate"),
+                "diabetes": data.get("diabetes"),
+                "smoking": data.get("smoking"),
+                "familyHistory": data.get("familyHistory"),
+                "risk_score": data.get("risk_score"),
+                "riskLevel": data.get("riskLevel"),
+                "top_contributing_features": data.get("top_contributing_features"),
+                "createdAt": datetime.now(timezone.utc),
+                "updatedAt": datetime.now(timezone.utc),
+            }
+            patient_col.insert_one(patient_doc)
             counts["patients"] += 1
             print(f"  [OK] Inserted patient profile: {pid} ({data['name']})")
         else:
             print(f"  [SKIP] Patient already exists: {pid}")
 
         # 2. Tabular clinical record
-        if not clinical_col.find_one({"patient_id": pid}):
+        if not clinical_col.find_one({"patient_id": mongo_oid}):
             sys_bp = int(data["bloodPressure"].split("/")[0])
             record = ClinicalRecord(
-                patient_id=pid,
+                patient_id=mongo_oid,
                 age=data["age"],
                 sex="M" if data["gender"] == "Male" else "F",
                 resting_bp=sys_bp,
@@ -201,9 +210,9 @@ def seed_multi_cohorts(db) -> Dict[str, int]:
             counts["clinical"] += 1
 
         # 3. 12-lead ECG recording metadata
-        if not ecg_col.find_one({"patient_id": pid}):
+        if not ecg_col.find_one({"patient_id": mongo_oid}):
             ecg = ECGRecording(
-                patient_id=pid,
+                patient_id=mongo_oid,
                 original_name=f"{pid}_12lead_resting.csv",
                 stored_name=f"ecg_{pid.lower().replace('-', '_')}.csv",
                 storage_path=f"uploads/ecg/{pid.lower()}_resting.csv",
