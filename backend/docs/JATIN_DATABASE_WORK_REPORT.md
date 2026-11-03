@@ -36,7 +36,10 @@ According to **Form 2 (Roles & Responsibilities of Team Members)**, Jatin Khande
    - *Deliverable:* Built model training data extraction pipeline (`prepare_training_data.py`), multimodal cohort query helpers in `database.py`, schema & feature alignment verification tool (`verify_model_data_alignment.py`), and test suite (`test_training_data.py`).
 7. **Sprint 3 (27/10/2026 – 08/11/2026): SHAP Storage Setup & Live API Pipeline**
    - *Form 2 Objective:* "Will setup a place in database to store SHAP explanation result."
-   - *Deliverable:* Extended `PredictionResult` schema with granular SHAP waterfall values, implemented live REST explainability endpoints (`/api/patients/{id}/explainability` and `/api/patients/explainability/global-importance`), connected frontend `dashboardService.js`, built `check_shap_pipeline.py`, and expanded unit test suite to 52 passing tests.
+   - *Deliverable:* Extended `PredictionResult` schema with granular SHAP waterfall values, implemented live REST explainability endpoints (`/api/patients/{id}/explainability` and `/api/patients/explainability/global-importance`), connected frontend `dashboardService.js`, and built `check_shap_pipeline.py`.
+8. **Sprint 3 (09/11/2026 – 21/11/2026): Test with Sample Data**
+   - *Form 2 Objective:* "Will add sample patient data and check database works fine."
+   - *Deliverable:* Authored `seed_multi_cohort_patients.py` for risk-stratified sample patient cohorts (Low, Moderate, High, Critical), created data integrity audit script (`validate_sample_data_integrity.py`), built throughput & latency benchmark suite (`benchmark_db_performance.py`), and authored automated test suite (`test_sample_data_and_benchmarks.py` — bringing total suite to 56 passing unit tests).
 
 ---
 
