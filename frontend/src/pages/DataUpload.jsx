@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { apiRequest, getApiUrl } from "../services/api";
+import { apiRequest } from "../services/api";
 
 const DataUpload = () => {
     const [activeTab, setActiveTab] = useState("clinical");
@@ -158,6 +158,11 @@ const DataUpload = () => {
             return;
         }
 
+        if (selectedFile.size > 10 * 1024 * 1024) {
+            setErrorMessage("The selected ECG file exceeds the 10 MB upload limit.");
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -169,29 +174,20 @@ const DataUpload = () => {
                 formData.append("duration_seconds", ecgDuration);
             }
 
-            const response = await fetch(getApiUrl("/api/data/ecg"), {
+            const data = await apiRequest("/api/data/ecg", {
                 method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
                 body: formData,
             });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data?.detail || "Failed to upload ECG file.");
-            }
-
-            setSuccessMessage(`✓ ECG file '${data.original_name}' successfully uploaded and registered in MongoDB (ID: ${data.id})!`);
+            setSuccessMessage(`ECG file '${data.original_name}' uploaded (Record ID: ${data.id}).`);
             setSelectedFile(null);
-            fetchHistory();
+            await fetchHistory();
         } catch (err) {
             const isFetchErr = err?.name === "TypeError" && String(err?.message).toLowerCase().includes("fetch");
             setErrorMessage(
                 isFetchErr
-                    ? "Backend server is not reachable on port 8000. Please ensure the backend is running."
-                    : (err.message || "Network error uploading ECG recording.")
+                    ? "The backend is not reachable. Check that the API server is running."
+                    : (err.message || "ECG recording could not be uploaded.")
             );
         } finally {
             setLoading(false);
