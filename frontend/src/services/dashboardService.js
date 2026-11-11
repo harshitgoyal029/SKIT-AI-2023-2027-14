@@ -1,3 +1,5 @@
+import { apiRequest } from "./api";
+
 const TEST_DASHBOARD_DATA = {
     source: "TEST_DATA",
     datasetVersion: "Sprint-2-Sample-01",
@@ -123,26 +125,29 @@ export const formatMetric = (value, unit = "") => {
 };
 
 /**
- * Fetches live SHAP explainability feature attributions from the MongoDB backend.
- * Falls back gracefully to sample data if backend endpoint is unavailable.
+ * Fetches live SHAP explainability feature attributions from the API.
+ * Reports unavailable data explicitly rather than presenting sample values as live.
  */
 export const fetchPatientExplainability = async (patientId) => {
     try {
-        const response = await fetch(`/api/patients/${encodeURIComponent(patientId)}/explainability`);
-        if (response.ok) {
-            const data = await response.json();
-            return {
-                source: "DATABASE",
-                method: data.method || "SHAP",
-                status: "Live",
-                baseValue: data.base_value,
-                topFeatures: data.features || [],
-                waterfallPoints: data.waterfall_points || [],
-            };
-        }
-    } catch {
-        // Fallback to offline test dataset
+        const data = await apiRequest(`/api/patients/${encodeURIComponent(patientId)}/explainability`);
+        return {
+            source: "DATABASE",
+            method: data.method || "SHAP",
+            status: "Live",
+            baseValue: data.base_value,
+            topFeatures: data.features || [],
+            waterfallPoints: data.waterfall_points || [],
+        };
+    } catch (error) {
+        return {
+            source: "UNAVAILABLE",
+            method: "SHAP",
+            status: "Unavailable",
+            baseValue: null,
+            topFeatures: [],
+            waterfallPoints: [],
+            error: error.message || "Explainability data is unavailable.",
+        };
     }
-
-    return TEST_DASHBOARD_DATA.explainability;
 };

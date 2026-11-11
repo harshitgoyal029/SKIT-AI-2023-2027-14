@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { apiRequest, getApiUrl } from "../../services/api";
+import { apiRequest } from "../../services/api";
 import CvdXaiIntroSlider from "../CvdXaiIntroSlider";
 import EcgAnalysis from "../EcgAnalysis";
 import ClinicalReportPrintDocument from "../ClinicalReportPrintDocument";
@@ -14,6 +14,7 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
     const [ecgPredictionError, setEcgPredictionError] = useState("");
     const [predictions, setPredictions] = useState([]);
     const [loadingData, setLoadingData] = useState(true);
+    const [dataError, setDataError] = useState("");
     const [modelHealth, setModelHealth] = useState(null);
 
     // Form and submission states
@@ -39,36 +40,38 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
     const fetchPatientData = useCallback(async () => {
         if (!token) {
             setLoadingData(false);
+            setDataError("Sign in to load your saved clinical and ECG records.");
             return;
         }
 
-        try {
-            setLoadingData(true);
-            const headers = { Authorization: `Bearer ${token}` };
+        setLoadingData(true);
+        setDataError("");
+        const results = await Promise.allSettled([
+            apiRequest("/api/data/clinical"),
+            apiRequest("/api/data/ecg"),
+            apiRequest("/api/predict/history"),
+        ]);
 
-            const [clinRes, ecgRes, predRes] = await Promise.all([
-                fetch(getApiUrl("/api/data/clinical"), { headers }).catch(() => null),
-                fetch(getApiUrl("/api/data/ecg"), { headers }).catch(() => null),
-                fetch(getApiUrl("/api/predict/history"), { headers }).catch(() => null),
-            ]);
+        const labels = ["clinical records", "ECG records", "prediction history"];
+        const failures = [];
+        const setters = [setClinicalRecords, setEcgRecords, setPredictions];
 
-            if (clinRes && clinRes.ok) {
-                const data = await clinRes.json();
-                setClinicalRecords(Array.isArray(data) ? data : []);
+        results.forEach((result, index) => {
+            if (result.status === "fulfilled" && Array.isArray(result.value)) {
+                setters[index](result.value);
+            } else {
+                if (result.status === "fulfilled") {
+                    failures.push(`${labels[index]} returned an unexpected response.`);
+                } else {
+                    failures.push(`${labels[index]}: ${result.reason?.message || "request failed"}`);
+                }
             }
-            if (ecgRes && ecgRes.ok) {
-                const data = await ecgRes.json();
-                setEcgRecords(Array.isArray(data) ? data : []);
-            }
-            if (predRes && predRes.ok) {
-                const data = await predRes.json();
-                setPredictions(Array.isArray(data) ? data : []);
-            }
-        } catch (err) {
-            console.error("Error fetching patient records:", err);
-        } finally {
-            setLoadingData(false);
+        });
+
+        if (failures.length) {
+            setDataError(`Some saved data could not be loaded. ${failures.join(" ")}`);
         }
+        setLoadingData(false);
     }, [token]);
 
     useEffect(() => {
@@ -202,6 +205,7 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
 
     return (
         <div className="patient-dashboard-container" style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
+            {dataError && <div className="form-error" role="alert">{dataError}</div>}
             {/* ========================================================================= */}
             {/* VIEW 1: MAIN PATIENT DASHBOARD (Strict Positional Sequence)               */}
             {/* ========================================================================= */}
@@ -317,7 +321,7 @@ const PatientDashboardView = ({ patient, currentUser, activeView = "dashboard" }
                             </div>
                         </div>
                     ) : (
-                        !loadingData && (
+                        !loadingData && !dataError && (
                             <div style={{ background: "#ffffff", border: "1.5px dashed #0284c7", borderRadius: "16px", padding: "36px", textAlign: "center" }}>
                                 <div style={{ fontSize: "40px", marginBottom: "10px" }}>📋</div>
                                 <h3 style={{ margin: "0 0 6px", color: "#0f172a" }}>No Clinical Vitals Uploaded Yet</h3>
