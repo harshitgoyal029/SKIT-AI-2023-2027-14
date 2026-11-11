@@ -1,12 +1,35 @@
 const parseResponse = async (response) => {
     const contentType = response.headers.get("content-type") || "";
+    const text = await response.text();
 
-    if (contentType.includes("application/json")) {
-        return response.json();
+    if (!text) {
+        return null;
     }
 
-    const text = await response.text();
+    if (contentType.includes("application/json")) {
+        try {
+            return JSON.parse(text);
+        } catch {
+            return { message: text };
+        }
+    }
+
     return text ? { message: text } : null;
+};
+
+export const getStoredAccessToken = (storage) =>
+    storage?.getItem("cvd_xai_access_token") || storage?.getItem("cvd_token") || null;
+
+const isNativeBody = (body) => {
+    if (typeof body === "string") return true;
+
+    return [
+        typeof FormData !== "undefined" && FormData,
+        typeof Blob !== "undefined" && Blob,
+        typeof URLSearchParams !== "undefined" && URLSearchParams,
+        typeof ArrayBuffer !== "undefined" && ArrayBuffer,
+    ].some((BodyType) => BodyType && body instanceof BodyType) ||
+        (typeof ArrayBuffer !== "undefined" && ArrayBuffer.isView(body));
 };
 
 export const createApiClient = ({
@@ -30,7 +53,9 @@ export const createApiClient = ({
         const headers = new Headers(customHeaders);
         const token = getAccessToken();
 
-        if (body !== undefined && !headers.has("Content-Type")) {
+        const serializeAsJson = body !== undefined && !isNativeBody(body);
+
+        if (serializeAsJson && !headers.has("Content-Type")) {
             headers.set("Content-Type", "application/json");
         }
 
@@ -41,10 +66,7 @@ export const createApiClient = ({
         const response = await fetchImpl(getApiUrl(path), {
             ...requestOptions,
             headers,
-            body:
-                body !== undefined && typeof body !== "string"
-                    ? JSON.stringify(body)
-                    : body,
+            body: serializeAsJson ? JSON.stringify(body) : body,
         });
 
         const data = await parseResponse(response);

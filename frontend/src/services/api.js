@@ -1,9 +1,9 @@
-import { createApiClient } from "./apiClientCore";
+import { createApiClient, getStoredAccessToken } from "./apiClientCore";
 
 const client = createApiClient({
     baseUrl: import.meta.env.VITE_API_BASE_URL || "http://localhost:8000",
     fetchImpl: (...args) => fetch(...args),
-    getAccessToken: () => localStorage.getItem("cvd_xai_access_token"),
+    getAccessToken: () => getStoredAccessToken(localStorage),
     onUnauthorized: () => window.dispatchEvent(new Event("cvd-xai:unauthorized")),
 });
 
