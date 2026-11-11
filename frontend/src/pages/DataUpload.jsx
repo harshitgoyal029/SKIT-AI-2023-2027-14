@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getApiUrl } from "../services/api";
+import { apiRequest, getApiUrl } from "../services/api";
 
 const DataUpload = () => {
     const [activeTab, setActiveTab] = useState("clinical");
@@ -35,33 +35,36 @@ const DataUpload = () => {
     const [clinicalRecords, setClinicalRecords] = useState([]);
     const [ecgRecords, setEcgRecords] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyError, setHistoryError] = useState("");
 
     const token = localStorage.getItem("cvd_xai_access_token") || localStorage.getItem("cvd_token");
 
     // Fetch history from MongoDB
     const fetchHistory = useCallback(async () => {
-        if (!token) return;
+        if (!token) {
+            setClinicalRecords([]);
+            setEcgRecords([]);
+            setHistoryError("");
+            return;
+        }
+
         setHistoryLoading(true);
+        setHistoryError("");
         try {
-            const [clinRes, ecgRes] = await Promise.all([
-                fetch(getApiUrl("/api/data/clinical"), {
-                    headers: { Authorization: `Bearer ${token}` },
-                }),
-                fetch(getApiUrl("/api/data/ecg"), {
-                    headers: { Authorization: `Bearer ${token}` },
-                }),
+            const [clinicalData, ecgData] = await Promise.all([
+                apiRequest("/api/data/clinical"),
+                apiRequest("/api/data/ecg"),
             ]);
 
-            if (clinRes.ok) {
-                const clinData = await clinRes.json();
-                setClinicalRecords(clinData);
-            }
-            if (ecgRes.ok) {
-                const ecgData = await ecgRes.json();
-                setEcgRecords(ecgData);
-            }
-        } catch (err) {
-            console.error("Error fetching upload history:", err);
+            setClinicalRecords(Array.isArray(clinicalData) ? clinicalData : []);
+            setEcgRecords(Array.isArray(ecgData) ? ecgData : []);
+        } catch (requestError) {
+            const isFetchError = requestError?.name === "TypeError";
+            setHistoryError(
+                isFetchError
+                    ? "The backend is not reachable. Check that the API server is running."
+                    : requestError.message || "Saved records could not be loaded."
+            );
         } finally {
             setHistoryLoading(false);
         }
@@ -113,29 +116,19 @@ const DataUpload = () => {
                 st_slope: clinicalForm.st_slope,
             };
 
-            const response = await fetch(getApiUrl("/api/data/clinical"), {
+            const data = await apiRequest("/api/data/clinical", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify(payload),
+                body: payload,
             });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data?.detail || "Failed to submit clinical data.");
-            }
-
-            setSuccessMessage(`✓ Clinical data successfully saved to MongoDB (Record ID: ${data.id})!`);
-            fetchHistory();
+            setSuccessMessage(`Clinical data saved (Record ID: ${data.id}).`);
+            await fetchHistory();
         } catch (err) {
             const isFetchErr = err?.name === "TypeError" && String(err?.message).toLowerCase().includes("fetch");
             setErrorMessage(
                 isFetchErr
-                    ? "Backend server is not reachable on port 8000. Please ensure the backend is running."
-                    : (err.message || "Network error submitting clinical data.")
+                    ? "The backend is not reachable. Check that the API server is running."
+                    : (err.message || "Clinical data could not be saved.")
             );
         } finally {
             setLoading(false);
@@ -491,8 +484,10 @@ const DataUpload = () => {
                     </div>
 
                     <div style={{ marginTop: "24px" }}>
+                        {historyError && <p className="form-error" role="alert">{historyError}</p>}
+                        {historyLoading && <p role="status">Loading saved records…</p>}
                         <h4 style={{ marginBottom: "12px" }}>🩺 Clinical Records in MongoDB (<code>clinical_records</code>)</h4>
-                        {clinicalRecords.length === 0 ? (
+                        {!historyLoading && !historyError && clinicalRecords.length === 0 ? (
                             <p style={{ color: "#64748b", fontStyle: "italic" }}>No clinical records saved in MongoDB yet.</p>
                         ) : (
                             <div className="registry-table-wrapper">
@@ -528,7 +523,7 @@ const DataUpload = () => {
 
                     <div style={{ marginTop: "32px" }}>
                         <h4 style={{ marginBottom: "12px" }}>📈 ECG Recordings in MongoDB (<code>ecg_recordings</code>)</h4>
-                        {ecgRecords.length === 0 ? (
+                        {!historyLoading && !historyError && ecgRecords.length === 0 ? (
                             <p style={{ color: "#64748b", fontStyle: "italic" }}>No ECG recordings uploaded to MongoDB yet.</p>
                         ) : (
                             <div className="registry-table-wrapper">
